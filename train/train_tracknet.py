@@ -12,6 +12,7 @@ import sys
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from data.dataset import TrackNetDataset
 from models.tracknet import TrackNet, heatmap_to_coords
@@ -61,7 +62,8 @@ def train(args):
         # ── train ──────────────────────────────────────────────────────────
         model.train()
         train_loss = 0.0
-        for frames, heatmaps, _ in train_dl:
+        pbar = tqdm(train_dl, desc=f"Epoch {epoch:3d} [train]", leave=False)
+        for frames, heatmaps, _ in pbar:
             frames   = frames.to(device)
             heatmaps = heatmaps.to(device)
             pred = model(frames)
@@ -70,6 +72,7 @@ def train(args):
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
+            pbar.set_postfix(loss=f"{loss.item():.4f}")
         train_loss /= len(train_dl)
 
         # ── validate ───────────────────────────────────────────────────────

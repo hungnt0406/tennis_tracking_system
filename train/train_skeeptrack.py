@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from data.dataset import SKeepTrackDataset
 from models.skeeptrack import SKeepTrack
@@ -68,7 +69,8 @@ def train(args):
         # ── train ──────────────────────────────────────────────────────────
         model.train()
         train_loss = 0.0
-        for t1, t2, hm1, hm2, coords1_gt, coords2_gt in train_dl:
+        pbar = tqdm(train_dl, desc=f"Epoch {epoch:3d} [train]", leave=False)
+        for t1, t2, hm1, hm2, coords1_gt, coords2_gt in pbar:
             t1, t2 = t1.to(device), t2.to(device)
             hm1, hm2 = hm1.to(device), hm2.to(device)
 
@@ -94,6 +96,7 @@ def train(args):
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
+            pbar.set_postfix(loss=f"{loss.item():.4f}")
 
         train_loss /= len(train_dl)
 

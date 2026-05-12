@@ -18,6 +18,7 @@ import shutil
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from data.dataset import YOLODataset
 from train.config import YOLO11M, SPLITS_CSV, CHECKPOINT_DIR, SEED
@@ -123,12 +124,13 @@ def train_fallback(args):
     for epoch in range(1, args.epochs + 1):
         model.train()
         train_loss = 0.0
-        for frames, labels, has_ball, _ in train_dl:
+        pbar = tqdm(train_dl, desc=f"Epoch {epoch:3d} [train]", leave=False)
+        for frames, labels, has_ball, _ in pbar:
             frames   = frames.to(device)
             labels   = labels.to(device)
             has_ball = has_ball.to(device)
 
-            out = model(frames)      # (B, 5): conf, cx, cy, bw, bh
+            out = model(frames)
             conf_loss = bce(out[:, 0], has_ball)
             mask = has_ball.bool()
             reg_loss = torch.tensor(0.0, device=device)
@@ -140,6 +142,7 @@ def train_fallback(args):
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
+            pbar.set_postfix(loss=f"{loss.item():.4f}")
 
         train_loss /= len(train_dl)
 

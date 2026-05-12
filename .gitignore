@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.Python
+build/
+dist/
+pip-wheel-metadata/
+.eggs/
+data/__pycache__/
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project artifacts
+results/
+runs/
+wandb/
+checkpoints/yolo_dataset/
+
+# Logs
+*.log
+logs/
+
+# YOLO / Ultralytics caches
+yolo11m.pt
+*.cache
