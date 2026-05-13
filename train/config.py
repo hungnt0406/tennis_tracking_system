@@ -23,16 +23,24 @@ TRACKNET = dict(
     heatmap_threshold = 0.5,     # for peak → coord conversion
 )
 
-# ─── S-KeepTrack ──────────────────────────────────────────────────────────────
-SKEEPTRACK = dict(
+# ─── TrackNetV4 ───────────────────────────────────────────────────────────────
+TRACKNETV4 = dict(
     batch_size    = 8,
     epochs        = 50,
     lr            = 1e-4,
     weight_decay  = 1e-5,
     patience      = 10,
-    k_candidates  = 8,           # top-k candidates per frame
-    cls_weight    = 1.0,         # weight for classification loss
-    assoc_weight  = 1.0,         # weight for association loss
+    heatmap_threshold = 0.5,
+)
+
+# ─── TrackNetV5 ───────────────────────────────────────────────────────────────
+TRACKNETV5 = dict(
+    batch_size    = 8,            # smaller due to 3× encoder + attention memory
+    epochs        = 50,
+    lr            = 1e-4,
+    weight_decay  = 1e-5,
+    patience      = 10,
+    heatmap_threshold = 0.5,
 )
 
 # ─── YOLO11m ──────────────────────────────────────────────────────────────────

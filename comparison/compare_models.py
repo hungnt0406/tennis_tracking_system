@@ -1,11 +1,12 @@
 """
-Run all three models on the test split and collect their metrics.
+Run all models on the test split and collect their metrics.
 
 Usage:
     python -m comparison.compare_models \\
-        --tracknet_ckpt   checkpoints/tracknet_best.pt \\
-        --skeeptrack_ckpt checkpoints/skeeptrack_best.pt \\
-        --yolo_ckpt       checkpoints/yolo11m_best.pt
+        --tracknet_ckpt    checkpoints/tracknet_best.pt \\
+        --tracknetv4_ckpt  checkpoints/tracknetv4_best.pt \\
+        --tracknetv5_ckpt  checkpoints/tracknetv5_best.pt \\
+        --yolo_ckpt        checkpoints/yolo11m_best.pt
 
 Saves per-model JSON files and a combined summary JSON to results/.
 """
@@ -45,7 +46,8 @@ def compare(args):
 
     checkpoints = {
         "tracknet":   args.tracknet_ckpt,
-        "skeeptrack": args.skeeptrack_ckpt,
+        "tracknetv4": args.tracknetv4_ckpt,
+        "tracknetv5": args.tracknetv5_ckpt,
         "yolo11m":    args.yolo_ckpt,
     }
 
@@ -89,7 +91,8 @@ def compare(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tracknet_ckpt",   default=os.path.join(CHECKPOINT_DIR, "tracknet_best.pt"))
-    parser.add_argument("--skeeptrack_ckpt", default=os.path.join(CHECKPOINT_DIR, "skeeptrack_best.pt"))
+    parser.add_argument("--tracknetv4_ckpt", default=os.path.join(CHECKPOINT_DIR, "tracknetv4_best.pt"))
+    parser.add_argument("--tracknetv5_ckpt", default=os.path.join(CHECKPOINT_DIR, "tracknetv5_best.pt"))
     parser.add_argument("--yolo_ckpt",       default=os.path.join(CHECKPOINT_DIR, "yolo11m_best.pt"))
     parser.add_argument("--splits_csv",      default=SPLITS_CSV)
     parser.add_argument("--results_dir",     default=RESULTS_DIR)
