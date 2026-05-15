@@ -26,8 +26,8 @@ def make_gaussian_heatmap_v2(x: float, y: float, w: int = IMG_W_V2, h: int = IMG
     cx = int(round(x))
     cy = int(round(y))
 
-    size = int(6 * sigma + 1)
-    half = size // 2
+    half = int(3 * sigma)
+    size = 2 * half + 1
     x_range = np.arange(-half, half + 1)
     gaussian_1d = np.exp(-0.5 * (x_range / sigma) ** 2)
     kernel = np.outer(gaussian_1d, gaussian_1d)
