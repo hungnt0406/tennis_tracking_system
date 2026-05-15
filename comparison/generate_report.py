@@ -19,20 +19,26 @@ from train.config import RESULTS_DIR
 
 MODEL_COLORS = {
     "tracknet":   "#2196F3",
-    "skeeptrack": "#4CAF50",
+    "tracknetv2": "#00BCD4",
+    "tracknetv3": "#4CAF50",
+    "tracknetv4": "#9C27B0",
+    "tracknetv5": "#E91E63",
     "yolo11m":    "#FF5722",
 }
 
 DISPLAY_NAMES = {
-    "tracknet":   "TrackNet",
-    "skeeptrack": "S-KeepTrack",
+    "tracknet":   "TrackNet V1",
+    "tracknetv2": "TrackNet V2",
+    "tracknetv3": "TrackNet V3",
+    "tracknetv4": "TrackNet V4",
+    "tracknetv5": "TrackNet V5",
     "yolo11m":    "YOLO11m",
 }
 
 
 def load_all(results_dir: str) -> dict:
     all_metrics = {}
-    for model in ("tracknet", "skeeptrack", "yolo11m"):
+    for model in ("tracknet", "tracknetv2", "tracknetv3", "tracknetv4", "tracknetv5", "yolo11m"):
         path = os.path.join(results_dir, f"{model}_metrics.json")
         if os.path.exists(path):
             with open(path) as f:
@@ -68,7 +74,7 @@ def plot_bar_metric(all_metrics: dict, metric_key: str, ylabel: str,
         v = all_metrics[m].get(metric_key)
         vals.append(v if v is not None else 0.0)
 
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(9, 4))
     bars = ax.bar([DISPLAY_NAMES[m] for m in models], vals,
                   color=[MODEL_COLORS.get(m, "gray") for m in models], width=0.5)
     ax.bar_label(bars, fmt="%.3f", padding=3)
@@ -85,14 +91,15 @@ def plot_bar_metric(all_metrics: dict, metric_key: str, ylabel: str,
 
 def plot_per_visibility(all_metrics: dict, out_path: str):
     vis_classes = [1, 2, 3]
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=(9, 5))
     x = np.arange(len(vis_classes))
-    width = 0.25
+    n_models = max(len(all_metrics), 1)
+    width = 0.8 / n_models
     for i, (model, metrics) in enumerate(all_metrics.items()):
         vals = [metrics.get(f"MAE_vis{c}") or 0 for c in vis_classes]
         ax.bar(x + i * width, vals, width, label=DISPLAY_NAMES[model],
                color=MODEL_COLORS.get(model, "gray"))
-    ax.set_xticks(x + width)
+    ax.set_xticks(x + width * (n_models - 1) / 2)
     ax.set_xticklabels(["Visible (1)", "Hard (2)", "Occluded (3)"])
     ax.set_ylabel("MAE (pixels)")
     ax.set_title("MAE by Visibility Class")

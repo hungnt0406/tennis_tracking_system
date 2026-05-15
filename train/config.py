@@ -43,6 +43,46 @@ TRACKNETV5 = dict(
     heatmap_threshold = 0.5,
 )
 
+# ─── TrackNetV2 ───────────────────────────────────────────────────────────────
+TRACKNETV2 = dict(
+    batch_size    = 10,
+    epochs        = 30,
+    lr            = 1e-3,
+    weight_decay  = 1e-5,
+    patience      = 8,
+    heatmap_threshold = 0.5,
+    seq_len       = 3,
+    sigma         = 2.5,
+    img_h         = 288,
+    img_w         = 512,
+)
+
+# ─── TrackNetV3 tracker ───────────────────────────────────────────────────────
+TRACKNETV3_TRACKER = dict(
+    batch_size    = 10,
+    epochs        = 30,
+    lr            = 1e-3,
+    weight_decay  = 1e-5,
+    patience      = 8,
+    heatmap_threshold = 0.5,
+    seq_len       = 8,
+    sigma         = 2.5,
+    img_h         = 288,
+    img_w         = 512,
+    bg_mode       = 'concat',
+)
+
+# ─── TrackNetV3 inpaint ───────────────────────────────────────────────────────
+TRACKNETV3_INPAINT = dict(
+    batch_size    = 32,
+    epochs        = 300,
+    lr            = 1e-3,
+    weight_decay  = 1e-5,
+    patience      = 20,
+    seq_len       = 16,
+    mask_ratio    = 0.3,
+)
+
 # ─── YOLO11m ──────────────────────────────────────────────────────────────────
 YOLO11M = dict(
     epochs        = 50,
