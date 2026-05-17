@@ -62,6 +62,10 @@ def train(args):
     print(f"Train: {len(train_ds)} samples | Val: {len(val_ds)} samples")
 
     model = TrackNetV3Tracker(seq_len=seq_len).to(device)
+    if args.resume:
+        state = torch.load(args.resume, map_location=device)
+        model.load_state_dict(state)
+        print(f"Resumed weights from {args.resume}")
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
                                   weight_decay=TRACKNETV3_TRACKER["weight_decay"])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -139,6 +143,8 @@ def main():
     parser.add_argument("--mixup", action="store_true",
                         help="Enable mixup augmentation (Beta(0.2, 0.2))")
     parser.add_argument("--device", default=None)
+    parser.add_argument("--resume", default=None,
+                        help="Path to a checkpoint to warm-start from (weights only).")
     train(parser.parse_args())
 
 
