@@ -70,16 +70,16 @@ class TrackNetV5(nn.Module):
 
         # Shared per-frame encoder (3-channel input per frame)
         self.enc1 = _VGGBlock(3, 64, 2)
-        self.pool1 = nn.MaxPool2d(2, 2, return_indices=True)
+        self.pool1 = nn.MaxPool2d(2, 2)
 
         self.enc2 = _VGGBlock(64, 128, 2)
-        self.pool2 = nn.MaxPool2d(2, 2, return_indices=True)
+        self.pool2 = nn.MaxPool2d(2, 2)
 
         self.enc3 = _VGGBlock(128, 256, 3)
-        self.pool3 = nn.MaxPool2d(2, 2, return_indices=True)
+        self.pool3 = nn.MaxPool2d(2, 2)
 
         self.enc4 = _VGGBlock(256, 512, 3)
-        self.pool4 = nn.MaxPool2d(2, 2, return_indices=True)
+        self.pool4 = nn.MaxPool2d(2, 2)
 
         self.bottleneck = _VGGBlock(512, 512, 3)
 
@@ -104,13 +104,13 @@ class TrackNetV5(nn.Module):
     def _encode(self, f):
         """Encode a single (B, 3, H, W) frame. Returns skip connections and bottleneck."""
         e1 = self.enc1(f)
-        e1p, _ = self.pool1(e1)
+        e1p = self.pool1(e1)
         e2 = self.enc2(e1p)
-        e2p, _ = self.pool2(e2)
+        e2p = self.pool2(e2)
         e3 = self.enc3(e2p)
-        e3p, _ = self.pool3(e3)
+        e3p = self.pool3(e3)
         e4 = self.enc4(e3p)
-        e4p, _ = self.pool4(e4)
+        e4p = self.pool4(e4)
         b = self.bottleneck(e4p)
         return (e1, e2, e3, e4), b
 
