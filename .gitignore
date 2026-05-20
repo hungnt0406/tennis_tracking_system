@@ -47,6 +47,7 @@ yolo11m.pt
 # Workspace-local docs / research scratch
 CLAUDE.md
 plans/
+slide_report/
 
 # Claude Code agent configs (local-only)
 .claude/
