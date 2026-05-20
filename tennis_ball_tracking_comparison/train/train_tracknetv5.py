@@ -18,6 +18,8 @@ from models.tracknet import heatmap_to_coords
 from models.tracknetv5 import TrackNetV5
 from train.config import TRACKNETV5, SPLITS_CSV, CHECKPOINT_DIR, SEED
 
+_CFG = TRACKNETV5
+
 
 def pixel_accuracy(pred_heatmap, gt_heatmap, threshold_px=5):
     """Fraction of frames where predicted peak ≤ threshold_px from GT peak."""
@@ -48,16 +50,25 @@ def train(args):
 
     model = TrackNetV5().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
-                                  weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                                  weight_decay=_CFG["weight_decay"])
+    plateau_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5)
     criterion = nn.BCELoss()
+
+    warmup_epochs = _CFG.get("warmup_epochs", 0)
+    grad_clip = _CFG.get("grad_clip", None)
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     best_val_loss = float("inf")
     patience_counter = 0
 
     for epoch in range(1, args.epochs + 1):
+        # Linear LR warmup: scale from lr/warmup_epochs up to lr over warmup_epochs
+        if warmup_epochs > 0 and epoch <= warmup_epochs:
+            warmup_factor = epoch / warmup_epochs
+            for pg in optimizer.param_groups:
+                pg["lr"] = args.lr * warmup_factor
+
         # ── train ──────────────────────────────────────────────────────────
         model.train()
         train_loss = 0.0
@@ -69,6 +80,8 @@ def train(args):
             loss = criterion(pred, heatmaps)
             optimizer.zero_grad()
             loss.backward()
+            if grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             optimizer.step()
             train_loss += loss.item()
             pbar.set_postfix(loss=f"{loss.item():.4f}")
@@ -88,7 +101,8 @@ def train(args):
         val_loss /= len(val_dl)
         val_acc  /= len(val_dl)
 
-        scheduler.step(val_loss)
+        if epoch > warmup_epochs:
+            plateau_scheduler.step(val_loss)
         print(f"Epoch {epoch:3d} | train_loss={train_loss:.4f} "
               f"val_loss={val_loss:.4f} val_acc@5px={val_acc:.3f}")
 
@@ -110,10 +124,10 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--splits_csv",      default=SPLITS_CSV)
-    parser.add_argument("--epochs",     type=int,   default=TRACKNETV5["epochs"])
-    parser.add_argument("--batch_size", type=int,   default=TRACKNETV5["batch_size"])
-    parser.add_argument("--lr",         type=float, default=TRACKNETV5["lr"])
-    parser.add_argument("--patience",   type=int,   default=TRACKNETV5["patience"])
+    parser.add_argument("--epochs",     type=int,   default=_CFG["epochs"])
+    parser.add_argument("--batch_size", type=int,   default=_CFG["batch_size"])
+    parser.add_argument("--lr",         type=float, default=_CFG["lr"])
+    parser.add_argument("--patience",   type=int,   default=_CFG["patience"])
     parser.add_argument("--checkpoint_dir", default=CHECKPOINT_DIR)
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Limit train+val to N samples each (quick convergence check)")

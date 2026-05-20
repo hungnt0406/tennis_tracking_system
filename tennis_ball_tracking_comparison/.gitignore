@@ -13,7 +13,7 @@ build/
 dist/
 pip-wheel-metadata/
 .eggs/
-
+data/__pycache__/
 # Virtual environments
 venv/
 .venv/
@@ -33,8 +33,7 @@ env/
 results/
 runs/
 wandb/
-cache/
-**/checkpoints/yolo_dataset/
+checkpoints/yolo_dataset/
 
 # Logs
 *.log
@@ -43,14 +42,3 @@ logs/
 # YOLO / Ultralytics caches
 yolo11m.pt
 *.cache
-
-# Workspace-local docs / research scratch
-CLAUDE.md
-plans/
-
-# Claude Code agent configs (local-only)
-.claude/
-
-# Large datasets — not source code
-Dataset/
-courtkeypoint_detection_comparison/data/images/

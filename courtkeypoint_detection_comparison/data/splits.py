@@ -1,0 +1,59 @@
+"""
+Split loader for court keypoint detection.
+
+data_train.json (6630 records) → train split as-is.
+data_val.json   (2211 records) → deterministically split 50/50 by sorted MD5
+                                  hash of record id: first half → val,
+                                  second half → test.
+"""
+
+import hashlib
+import json
+from pathlib import Path
+
+
+_DEFAULT_DATA_DIR = Path(__file__).parent
+
+
+def _load_json(path: Path) -> list[dict]:
+    with open(path) as f:
+        return json.load(f)
+
+
+def load_records(split: str, data_dir: str | Path | None = None) -> list[dict]:
+    """Return records for the requested split.
+
+    Parameters
+    ----------
+    split : str
+        One of ``"train"``, ``"val"``, or ``"test"``.
+    data_dir : str or Path, optional
+        Directory containing ``data_train.json`` and ``data_val.json``.
+        Defaults to the ``data/`` folder next to this file.
+
+    Returns
+    -------
+    list[dict]
+        Each dict has keys ``"id"``, ``"metric"``, ``"kps"``.
+    """
+    if split not in ("train", "val", "test"):
+        raise ValueError(f"split must be 'train', 'val', or 'test'; got {split!r}")
+
+    d = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+
+    if split == "train":
+        return _load_json(d / "data_train.json")
+
+    # val + test come from data_val.json, deterministically halved by md5 hash
+    records = _load_json(d / "data_val.json")
+
+    def _sort_key(r: dict) -> str:
+        return hashlib.md5(str(r["id"]).encode()).hexdigest()
+
+    sorted_records = sorted(records, key=_sort_key)
+    mid = len(sorted_records) // 2  # 1105 each side for 2211 records
+
+    if split == "val":
+        return sorted_records[:mid]
+    else:  # "test"
+        return sorted_records[mid:]
