@@ -35,11 +35,13 @@ TRACKNETV4 = dict(
 
 # ─── TrackNetV5 ───────────────────────────────────────────────────────────────
 TRACKNETV5 = dict(
-    batch_size    = 8,            # smaller due to 3× encoder + attention memory
-    epochs        = 50,
-    lr            = 1e-4,
-    weight_decay  = 1e-5,
-    patience      = 10,
+    batch_size        = 8,        # smaller due to 3× encoder + attention memory
+    epochs            = 60,
+    lr                = 5e-5,     # lower than V1; attention modules need gentler LR
+    warmup_epochs     = 5,        # linear LR warmup before ReduceLROnPlateau takes over
+    weight_decay      = 1e-5,
+    patience          = 15,       # attention needs more epochs to converge
+    grad_clip         = 1.0,      # clip gradient norm; attention can spike early
     heatmap_threshold = 0.5,
 )
 
