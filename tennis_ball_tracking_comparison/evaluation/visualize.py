@@ -3,6 +3,8 @@ Visualise model predictions on sample test frames.
 
 Usage:
     python -m evaluation.visualize --model tracknet    --checkpoint checkpoints/tracknet_best.pt
+    python -m evaluation.visualize --model tracknetv2  --checkpoint checkpoints/tracknetv2_best.pt
+    python -m evaluation.visualize --model tracknetv3  --checkpoint checkpoints/tracknetv3_inpaint_best.pt
     python -m evaluation.visualize --model tracknetv4  --checkpoint checkpoints/tracknetv4_best.pt
     python -m evaluation.visualize --model tracknetv5  --checkpoint checkpoints/tracknetv5_best.pt
     python -m evaluation.visualize --model yolo11m     --checkpoint checkpoints/yolo11m_best.pt
@@ -40,6 +42,76 @@ def _load_tracknet(checkpoint, device):
             hm = model(inp)
         coords = heatmap_to_coords(hm.cpu(), threshold=0.5)[0].numpy()
         return coords  # (2,) or (-1, -1)
+
+    return predict
+
+
+def _load_tracknetv2(checkpoint, device):
+    from models.tracknetv2 import TrackNetV2
+    from models.tracknet import heatmap_to_coords
+    from train.config import TRACKNETV2
+
+    seq_len = TRACKNETV2["seq_len"]
+    model = TrackNetV2(in_dim=seq_len * 3, out_dim=seq_len).to(device)
+    model.load_state_dict(torch.load(checkpoint, map_location=device))
+    model.eval()
+
+    def predict(window_paths):
+        from data.dataset_v2 import _read_rgb, _normalize_chw
+        from data.preprocessing_v2 import resize_v2, IMG_H_V2, IMG_W_V2
+        frames = []
+        for p in window_paths:
+            img = _read_rgb(p)
+            frames.append(_normalize_chw(resize_v2(img)))
+        inp = np.concatenate(frames, axis=0)
+        inp_t = torch.from_numpy(inp).unsqueeze(0).to(device)
+        with torch.no_grad():
+            out = model(inp_t)[0].cpu()  # (seq_len, H, W)
+        hm = out[-1].unsqueeze(0).unsqueeze(0)  # last frame in window
+        coords = heatmap_to_coords(hm, threshold=0.5)[0].numpy()
+        if coords[0] >= 0:
+            coords[0] = coords[0] * (IMG_W / IMG_W_V2)
+            coords[1] = coords[1] * (IMG_H / IMG_H_V2)
+        return coords
+
+    return predict
+
+
+def _load_tracknetv3(checkpoint, device):
+    """checkpoint = InpaintNet path; tracker loaded from checkpoints/tracknetv3_tracker_best.pt."""
+    from models.tracknetv3 import TrackNetV3Tracker, InpaintNet
+    from train.config import TRACKNETV3_TRACKER
+
+    seq_len = TRACKNETV3_TRACKER["seq_len"]
+    tracker = TrackNetV3Tracker(seq_len=seq_len).to(device)
+    tracker_ckpt = os.path.join(CHECKPOINT_DIR, "tracknetv3_tracker_best.pt")
+    tracker.load_state_dict(torch.load(tracker_ckpt, map_location=device))
+    tracker.eval()
+
+    inpaint = InpaintNet().to(device)
+    inpaint.load_state_dict(torch.load(checkpoint, map_location=device))
+    inpaint.eval()
+
+    def predict(window_paths):
+        from data.dataset_v2 import _read_rgb, _normalize_chw
+        from data.preprocessing_v2 import resize_v2, IMG_H_V2, IMG_W_V2
+        from models.tracknet import heatmap_to_coords
+        frames = []
+        for p in window_paths:
+            img = _read_rgb(p)
+            frames.append(_normalize_chw(resize_v2(img)))
+        # Use pixel-wise mean of window as pseudo-background (no cached median available)
+        pseudo_bg = np.mean(frames, axis=0).astype(np.float32)
+        inp = np.concatenate(frames + [pseudo_bg], axis=0)
+        inp_t = torch.from_numpy(inp).unsqueeze(0).to(device)
+        with torch.no_grad():
+            out = tracker(inp_t)[0].cpu()  # (seq_len, H, W)
+        hm = out[-1].unsqueeze(0).unsqueeze(0)
+        coords = heatmap_to_coords(hm, threshold=0.5)[0].numpy()
+        if coords[0] >= 0:
+            coords[0] = coords[0] * (IMG_W / IMG_W_V2)
+            coords[1] = coords[1] * (IMG_H / IMG_H_V2)
+        return coords
 
     return predict
 
@@ -164,6 +236,14 @@ def visualize(args):
     if args.model == "tracknet":
         predictor = _load_tracknet(args.checkpoint, device)
         need_frames = 3
+    elif args.model == "tracknetv2":
+        from train.config import TRACKNETV2
+        predictor = _load_tracknetv2(args.checkpoint, device)
+        need_frames = TRACKNETV2["seq_len"]
+    elif args.model == "tracknetv3":
+        from train.config import TRACKNETV3_TRACKER
+        predictor = _load_tracknetv3(args.checkpoint, device)
+        need_frames = TRACKNETV3_TRACKER["seq_len"]
     elif args.model == "tracknetv4":
         predictor = _load_tracknetv4(args.checkpoint, device)
         need_frames = 3
@@ -214,7 +294,8 @@ def visualize(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model",       required=True,
-                        choices=["tracknet", "tracknetv4", "tracknetv5", "yolo11m"])
+                        choices=["tracknet", "tracknetv2", "tracknetv3",
+                                 "tracknetv4", "tracknetv5", "yolo11m"])
     parser.add_argument("--checkpoint",  required=True)
     parser.add_argument("--splits_csv",  default=SPLITS_CSV)
     parser.add_argument("--output_dir",  default=os.path.join(RESULTS_DIR, "visualizations"))
