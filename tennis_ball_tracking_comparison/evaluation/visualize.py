@@ -2,8 +2,10 @@
 Visualise model predictions on sample test frames.
 
 Usage:
-    python -m evaluation.visualize --model tracknet --checkpoint checkpoints/tracknet_best.pt
-                                   --num_samples 20 --output_dir results/viz_tracknet
+    python -m evaluation.visualize --model tracknet    --checkpoint checkpoints/tracknet_best.pt
+    python -m evaluation.visualize --model tracknetv4  --checkpoint checkpoints/tracknetv4_best.pt
+    python -m evaluation.visualize --model tracknetv5  --checkpoint checkpoints/tracknetv5_best.pt
+    python -m evaluation.visualize --model yolo11m     --checkpoint checkpoints/yolo11m_best.pt
 """
 
 import argparse
@@ -42,30 +44,97 @@ def _load_tracknet(checkpoint, device):
     return predict
 
 
-def _load_skeeptrack(checkpoint, device):
-    from models.skeeptrack import SKeepTrack
-    from train.config import SKEEPTRACK
-    model = SKeepTrack(k=SKEEPTRACK["k_candidates"], pretrained=False).to(device)
+def _load_tracknetv4(checkpoint, device):
+    from models.tracknetv4 import TrackNetV4
+    from models.tracknet import heatmap_to_coords
+    model = TrackNetV4().to(device)
     model.load_state_dict(torch.load(checkpoint, map_location=device))
     model.eval()
 
-    def predict(pair_paths):
+    def predict(triplet_paths):
         import cv2 as _cv2
         from data.preprocessing import resize_frame, normalize
-        imgs = []
-        for p in pair_paths:
+        frames = []
+        for p in triplet_paths:
             img = _cv2.imread(p)
             img = _cv2.cvtColor(img, _cv2.COLOR_BGR2RGB)
-            imgs.append(resize_frame(img))
-        t1 = torch.from_numpy(normalize(imgs[0])).unsqueeze(0).to(device)
-        t2 = torch.from_numpy(normalize(imgs[1])).unsqueeze(0).to(device)
+            frames.append(resize_frame(img))
+        tensor = np.concatenate([normalize(f) for f in frames], axis=0)
+        inp = torch.from_numpy(tensor).unsqueeze(0).to(device)
         with torch.no_grad():
-            _, _, _, pred_norm = model(t1, t2)
-        cx = pred_norm[0, 0].item() * IMG_W
-        cy = pred_norm[0, 1].item() * IMG_H
-        return np.array([cx, cy])
+            hm = model(inp)
+        return heatmap_to_coords(hm.cpu(), threshold=0.5)[0].numpy()
 
     return predict
+
+
+def _load_tracknetv5(checkpoint, device):
+    from models.tracknetv5 import TrackNetV5
+    from models.tracknet import heatmap_to_coords
+    model = TrackNetV5().to(device)
+    model.load_state_dict(torch.load(checkpoint, map_location=device))
+    model.eval()
+
+    def predict(triplet_paths):
+        import cv2 as _cv2
+        from data.preprocessing import resize_frame, normalize
+        frames = []
+        for p in triplet_paths:
+            img = _cv2.imread(p)
+            img = _cv2.cvtColor(img, _cv2.COLOR_BGR2RGB)
+            frames.append(resize_frame(img))
+        tensor = np.concatenate([normalize(f) for f in frames], axis=0)
+        inp = torch.from_numpy(tensor).unsqueeze(0).to(device)
+        with torch.no_grad():
+            hm = model(inp)
+        return heatmap_to_coords(hm.cpu(), threshold=0.5)[0].numpy()
+
+    return predict
+
+
+def _load_yolo(checkpoint, device):
+    try:
+        from ultralytics import YOLO
+        model = YOLO(checkpoint)
+
+        def predict(frame_paths):
+            import cv2 as _cv2
+            img = _cv2.imread(frame_paths[-1])
+            h, w = img.shape[:2]
+            results = model(img, verbose=False)
+            boxes = results[0].boxes
+            if boxes and len(boxes):
+                best = boxes.conf.argmax()
+                if boxes.conf[best] > 0.3:
+                    x1, y1, x2, y2 = boxes.xyxy[best].tolist()
+                    px = ((x1 + x2) / 2) * (IMG_W / w)
+                    py = ((y1 + y2) / 2) * (IMG_H / h)
+                    return np.array([px, py])
+            return np.array([-1.0, -1.0])
+
+        return predict
+    except ImportError:
+        from models.yolo11m import LightweightDetector
+        from data.preprocessing import YOLO_SIZE
+        det = LightweightDetector().to(device)
+        det.load_state_dict(torch.load(checkpoint, map_location=device))
+        det.eval()
+
+        def predict(frame_paths):
+            import cv2 as _cv2
+            img = _cv2.imread(frame_paths[-1])
+            img = _cv2.cvtColor(img, _cv2.COLOR_BGR2RGB)
+            img = _cv2.resize(img, (YOLO_SIZE, YOLO_SIZE))
+            tensor = torch.from_numpy(img.transpose(2, 0, 1)).float() / 255.0
+            inp = tensor.unsqueeze(0).to(device)
+            with torch.no_grad():
+                out = det(inp)
+            conf = torch.sigmoid(out[0, 0]).item()
+            if conf > 0.3:
+                return np.array([out[0, 1].item() * IMG_W, out[0, 2].item() * IMG_H])
+            return np.array([-1.0, -1.0])
+
+        return predict
 
 
 def overlay_prediction(img_bgr, pred_xy, gt_xy, model_name):
@@ -95,11 +164,17 @@ def visualize(args):
     if args.model == "tracknet":
         predictor = _load_tracknet(args.checkpoint, device)
         need_frames = 3
-    elif args.model == "skeeptrack":
-        predictor = _load_skeeptrack(args.checkpoint, device)
-        need_frames = 2
+    elif args.model == "tracknetv4":
+        predictor = _load_tracknetv4(args.checkpoint, device)
+        need_frames = 3
+    elif args.model == "tracknetv5":
+        predictor = _load_tracknetv5(args.checkpoint, device)
+        need_frames = 3
+    elif args.model == "yolo11m":
+        predictor = _load_yolo(args.checkpoint, device)
+        need_frames = 1
     else:
-        raise ValueError(f"Visualize not yet implemented for {args.model}")
+        raise ValueError(f"Visualize not implemented for {args.model}")
 
     # Group into sequences
     from collections import defaultdict
@@ -138,7 +213,8 @@ def visualize(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model",       required=True, choices=["tracknet", "skeeptrack"])
+    parser.add_argument("--model",       required=True,
+                        choices=["tracknet", "tracknetv4", "tracknetv5", "yolo11m"])
     parser.add_argument("--checkpoint",  required=True)
     parser.add_argument("--splits_csv",  default=SPLITS_CSV)
     parser.add_argument("--output_dir",  default=os.path.join(RESULTS_DIR, "visualizations"))
