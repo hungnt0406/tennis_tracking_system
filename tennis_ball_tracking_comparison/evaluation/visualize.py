@@ -233,26 +233,35 @@ def visualize(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     records = _load_splits(args.splits_csv, "test")
 
+    # target_idx is the position within the window that the model predicts for.
+    # tracknet/v4/v5 are trained to predict the *middle* frame of the triplet;
+    # tracknetv2/v3 produce per-frame heatmaps and we read the *last* one.
     if args.model == "tracknet":
         predictor = _load_tracknet(args.checkpoint, device)
         need_frames = 3
+        target_idx = 1
     elif args.model == "tracknetv2":
         from train.config import TRACKNETV2
         predictor = _load_tracknetv2(args.checkpoint, device)
         need_frames = TRACKNETV2["seq_len"]
+        target_idx = need_frames - 1
     elif args.model == "tracknetv3":
         from train.config import TRACKNETV3_TRACKER
         predictor = _load_tracknetv3(args.checkpoint, device)
         need_frames = TRACKNETV3_TRACKER["seq_len"]
+        target_idx = need_frames - 1
     elif args.model == "tracknetv4":
         predictor = _load_tracknetv4(args.checkpoint, device)
         need_frames = 3
+        target_idx = 1
     elif args.model == "tracknetv5":
         predictor = _load_tracknetv5(args.checkpoint, device)
         need_frames = 3
+        target_idx = 1
     elif args.model == "yolo11m":
         predictor = _load_yolo(args.checkpoint, device)
         need_frames = 1
+        target_idx = 0
     else:
         raise ValueError(f"Visualize not implemented for {args.model}")
 
@@ -269,12 +278,19 @@ def visualize(args):
     saved_frames = []   # (path, vis_img) kept in order for video
 
     for clip_records in groups.values():
-        for i in range(need_frames - 1, len(clip_records)):
+        n = len(clip_records)
+        for i in range(n):
             if count >= args.num_samples:
                 break
-            window = clip_records[i - need_frames + 1 : i + 1]
+            # Build a window so that window[target_idx] == clip_records[i] (the current frame).
+            start = i - target_idx
+            end = start + need_frames  # exclusive
+            window = []
+            for j in range(start, end):
+                j_clamped = max(0, min(n - 1, j))
+                window.append(clip_records[j_clamped])
             paths = [r["frame_path"] for r in window]
-            cur_r = window[-1]
+            cur_r = window[target_idx]
 
             pred_xy = predictor(paths)
             gt_xy   = np.array([float(cur_r["x"]), float(cur_r["y"])])
