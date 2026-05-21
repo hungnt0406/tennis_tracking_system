@@ -25,28 +25,38 @@ PIN_MEMORY = True
 CHECKPOINT_DIR = pathlib.Path(__file__).parent.parent / "checkpoints"
 
 
+ORIG_W, ORIG_H = 1280, 720  # all images in this dataset are 1280×720
+
+
 def _val_pck(model, loader, device, cfg):
+    """Compare in input space (360×640). GT is scaled down from original; pred stays
+    in input space (argmax × stride). Threshold of 7px at 360×640 ≈ 14px at 1280×720,
+    which is achievable with argmax decoding at any stride."""
     model.eval()
     correct, total = 0, 0
+    # scale GT from original image space down to input space for comparison
+    gt_scale_x = cfg['input_w'] / ORIG_W
+    gt_scale_y = cfg['input_h'] / ORIG_H
     with torch.no_grad():
         for imgs, heatmaps, kps_orig in loader:
             imgs = imgs.to(device)
             preds = torch.sigmoid(model(imgs))
-            # decode each of 14 channels (skip channel 14 = court center)
             B, C, H, W = preds.shape
-            stride = cfg['input_h'] // H  # 1 for tracknet_court, 4 for others
+            stride = cfg['input_h'] // H
             for b in range(B):
                 for k in range(14):
-                    # ground truth
                     gt = kps_orig[b, k].numpy()
                     if gt[0] < 0:  # invisible
                         continue
-                    # argmax decode in output space
+                    # GT scaled to input space
+                    gt_x = gt[0] * gt_scale_x
+                    gt_y = gt[1] * gt_scale_y
                     hm = preds[b, k].cpu().numpy()
                     fy, fx = np.unravel_index(hm.argmax(), hm.shape)
+                    # pred in input space (argmax × stride)
                     px = fx * stride
                     py = fy * stride
-                    dist = np.sqrt((px - gt[0])**2 + (py - gt[1])**2)
+                    dist = np.sqrt((px - gt_x)**2 + (py - gt_y)**2)
                     if dist <= cfg['pck_threshold_px']:
                         correct += 1
                     total += 1
