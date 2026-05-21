@@ -266,6 +266,8 @@ def visualize(args):
 
     os.makedirs(args.output_dir, exist_ok=True)
     count = 0
+    saved_frames = []   # (path, vis_img) kept in order for video
+
     for clip_records in groups.values():
         for i in range(need_frames - 1, len(clip_records)):
             if count >= args.num_samples:
@@ -284,11 +286,27 @@ def visualize(args):
 
             fname = f"{cur_r['game']}_{cur_r['clip']}_{cur_r['frame_name']}"
             cv2.imwrite(os.path.join(args.output_dir, fname), vis)
+            saved_frames.append(vis)
             count += 1
         if count >= args.num_samples:
             break
 
     print(f"Saved {count} visualisations → {args.output_dir}")
+
+    # Write combined video
+    if saved_frames:
+        h, w = saved_frames[0].shape[:2]
+        video_path = os.path.join(args.output_dir, f"{args.model}_preview.mp4")
+        writer = cv2.VideoWriter(
+            video_path,
+            cv2.VideoWriter_fourcc(*"mp4v"),
+            args.fps,
+            (w, h),
+        )
+        for frame in saved_frames:
+            writer.write(frame)
+        writer.release()
+        print(f"Saved video → {video_path}")
 
 
 if __name__ == "__main__":
@@ -299,5 +317,6 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint",  required=True)
     parser.add_argument("--splits_csv",  default=SPLITS_CSV)
     parser.add_argument("--output_dir",  default=os.path.join(RESULTS_DIR, "visualizations"))
-    parser.add_argument("--num_samples", type=int, default=20)
+    parser.add_argument("--num_samples", type=int, default=200)
+    parser.add_argument("--fps",         type=int, default=25)
     visualize(parser.parse_args())
