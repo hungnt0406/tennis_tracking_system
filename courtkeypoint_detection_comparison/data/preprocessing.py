@@ -37,10 +37,12 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 #  12 = top center T-point (midpoint of service center line top)
 #  13 = bottom center T-point
 #
-# IMPORTANT: this is a placeholder identity mapping.  The true bilateral-
-# symmetry swap table must be confirmed by visualizing annotated images
-# before using hflip augmentation in training.
-HFLIP_KP_SWAP = tuple(range(NUM_KEYPOINTS))  # placeholder — needs visual verification
+# Bilateral-symmetry swap applied after a horizontal flip: position i in the
+# output list comes from position HFLIP_KP_SWAP[i] of the mirrored kps.
+# Pairs: 0↔1 outer top, 2↔3 outer bottom, 4↔6 / 5↔7 service-box L↔R,
+# 8↔9 / 10↔11 T-points L↔R; 12 and 13 are on the center line and stay put.
+# Verify visually on one flipped sample before relying on this.
+HFLIP_KP_SWAP = (1, 0, 3, 2, 6, 7, 4, 5, 9, 8, 11, 10, 12, 13)
 
 
 # ---------------------------------------------------------------------------

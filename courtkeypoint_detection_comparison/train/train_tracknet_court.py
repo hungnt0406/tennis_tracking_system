@@ -10,13 +10,13 @@ import pathlib
 
 import numpy as np
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from data.dataset import CourtKeypointDataset
 from models.tracknet_court import TrackNetCourt
 from train.config import TRACKNET_COURT
+from train.losses import FocalHeatmapLoss
 
 SEED = 42
 NUM_WORKERS = 4
@@ -98,7 +98,7 @@ def train(args):
                                  weight_decay=cfg['weight_decay'])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=5)
-    criterion = nn.MSELoss()
+    criterion = FocalHeatmapLoss()
 
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
     best_pck = 0.0
