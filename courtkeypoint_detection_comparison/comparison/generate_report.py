@@ -33,10 +33,9 @@ DISPLAY_NAMES = {
 # Human-readable labels for the 14 court keypoints (TennisCourtDetector ordering)
 KP_LABELS = [
     "TL-outer", "TR-outer", "BL-outer", "BR-outer",
+    "TL-singles", "BL-singles", "TR-singles", "BR-singles",
     "TL-service", "TR-service", "BL-service", "BR-service",
-    "T-top", "T-bot",
-    "Net-L", "Net-R",
-    "Side-TL", "Side-TR",
+    "Top-center-T", "Bot-center-T",
 ]
 
 
@@ -166,9 +165,9 @@ def plot_params_vs_pck(all_metrics: dict, out_path: str):
 
 def plot_radar(all_metrics: dict, out_path: str):
     """Radar chart comparing models on the five headline PCK thresholds +
-    court_center and normalised mean_kp_error."""
+    homography success and normalised error metrics."""
     categories = ["PCK@5px", "PCK@7px", "PCK@10px", "PCK@25px",
-                  "Center@7px", "1−NormErr"]
+                  "H Success", "1−NormPxErr", "1−NormCmErr"]
     N = len(categories)
     angles = np.linspace(0, 2 * np.pi, N, endpoint=False).tolist()
     angles += angles[:1]
@@ -178,13 +177,16 @@ def plot_radar(all_metrics: dict, out_path: str):
         # Normalise mean_kp_error to [0,1]: assume 50px is the "zero" bound
         err = _safe(metrics.get("mean_kp_error_px"))
         norm_err_inv = max(0.0, 1.0 - err / 50.0)
+        reproj_err = _safe(metrics.get("mean_reproj_err_cm"))
+        norm_reproj_inv = max(0.0, 1.0 - reproj_err / 100.0)
         vals = [
             _safe(metrics.get("pck@5px")),
             _safe(metrics.get("pck@7px")),
             _safe(metrics.get("pck@10px")),
             _safe(metrics.get("pck@25px")),
-            _safe(metrics.get("court_center_pck@7px")),
+            _safe(metrics.get("homography_success_rate")),
             norm_err_inv,
+            norm_reproj_inv,
         ]
         vals += vals[:1]
         ax.plot(angles, vals, "o-", linewidth=2,
@@ -213,6 +215,9 @@ SUMMARY_METRICS = [
     ("pck@10px",              "PCK@10px"),
     ("pck@25px",              "PCK@25px"),
     ("mean_kp_error_px",      "Mean KP Err (px)"),
+    ("mean_reproj_err_cm",    "Mean Reproj Err (cm)"),
+    ("max_reproj_err_cm",     "Max Reproj Err (cm)"),
+    ("homography_success_rate", "Homography Success"),
     ("court_center_pck@7px",  "Center@7px"),
     ("params_M",              "Params (M)"),
     ("FPS",                   "FPS"),
@@ -293,6 +298,14 @@ def generate_report(args):
     plot_bar_metric(all_metrics, "mean_kp_error_px", "Mean Error (pixels)",
         "Mean Keypoint Error",
         os.path.join(args.results_dir, "mean_kp_error.png"))
+
+    plot_bar_metric(all_metrics, "mean_reproj_err_cm", "Mean Error (cm)",
+        "Mean Court-Plane Reprojection Error",
+        os.path.join(args.results_dir, "mean_reproj_error_cm.png"))
+
+    plot_bar_metric(all_metrics, "homography_success_rate", "Success Rate",
+        "Homography Estimation Success Rate",
+        os.path.join(args.results_dir, "homography_success_rate.png"))
 
     plot_bar_metric(all_metrics, "court_center_pck@7px", "PCK @ 7px",
         "Court Center Accuracy @ 7px",

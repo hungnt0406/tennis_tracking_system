@@ -18,11 +18,12 @@ import torch
 from data.dataset import CourtKeypointDataset
 from train.config import TRACKNET_COURT, RESNET50, HRNET
 from evaluation.metrics import compute_all_metrics
+from homography.estimate import estimate_homography
 
 
 # ─── Heatmap decoding ────────────────────────────────────────────────────────
 
-def heatmap_to_coords(heatmap_ch, stride):
+def heatmap_to_coords(heatmap_ch, stride, confidence_threshold=None):
     """
     heatmap_ch: (H, W) numpy float
     Returns (x, y) in output-stride pixel space, then scale by stride.
@@ -31,6 +32,10 @@ def heatmap_to_coords(heatmap_ch, stride):
     H, W = heatmap_ch.shape
     flat_idx = heatmap_ch.argmax()
     fy, fx = np.unravel_index(flat_idx, (H, W))
+    peak = float(heatmap_ch[fy, fx])
+    if confidence_threshold is not None and peak < confidence_threshold:
+        return -1.0, -1.0
+
     # sub-pixel: 3x3 weighted mean
     y1, y2 = max(0, fy - 1), min(H, fy + 2)
     x1, x2 = max(0, fx - 1), min(W, fx + 2)
@@ -48,7 +53,8 @@ def heatmap_to_coords(heatmap_ch, stride):
 
 # ─── Shared evaluation loop ───────────────────────────────────────────────────
 
-def _eval_model(model, cfg, checkpoint_path, split, batch_size, device):
+def _eval_model(model, cfg, checkpoint_path, split, batch_size, device,
+                max_samples=None, confidence_threshold=0.3):
     ckpt = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(ckpt['model_state'])
     model.eval().to(device)
@@ -56,7 +62,8 @@ def _eval_model(model, cfg, checkpoint_path, split, batch_size, device):
     ds = CourtKeypointDataset(split, augment=False,
                               stride=cfg['stride'],
                               gaussian_radius=cfg['gaussian_radius'],
-                              imagenet_norm=cfg.get('use_imagenet_norm', False))
+                              imagenet_norm=cfg.get('use_imagenet_norm', False),
+                              max_samples=max_samples)
     loader = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=False, num_workers=2)
 
     # Count params
@@ -82,11 +89,17 @@ def _eval_model(model, cfg, checkpoint_path, split, batch_size, device):
             for b in range(B):
                 pred_kps_b = np.zeros((14, 2), dtype=np.float32)
                 for k in range(14):
-                    px, py = heatmap_to_coords(preds[b, k], stride)
+                    px, py = heatmap_to_coords(
+                        preds[b, k], stride,
+                        confidence_threshold=confidence_threshold,
+                    )
                     pred_kps_b[k] = [px, py]
 
                 # court center from channel 14
-                px_c, py_c = heatmap_to_coords(preds[b, 14], stride)
+                px_c, py_c = heatmap_to_coords(
+                    preds[b, 14], stride,
+                    confidence_threshold=confidence_threshold,
+                )
 
                 gt_b = kps_np[b]  # (14, 2)
                 mask_b = (gt_b[:, 0] >= 0)  # visible if x >= 0
@@ -129,17 +142,36 @@ def _eval_model(model, cfg, checkpoint_path, split, batch_size, device):
     # TODO: pass orig_dims through dataset; for v1, assume all images are 1280x720
     # (most common resolution in TennisCourtDetector dataset).
     ORIG_W, ORIG_H = 1280, 720
-    pred_kps_arr[:, :, 0] *= ORIG_W / input_w
-    pred_kps_arr[:, :, 1] *= ORIG_H / input_h
-    pred_center_arr[:, 0] *= ORIG_W / input_w
-    pred_center_arr[:, 1] *= ORIG_H / input_h
+    pred_visible = (pred_kps_arr[:, :, 0] >= 0) & (pred_kps_arr[:, :, 1] >= 0)
+    pred_kps_arr[:, :, 0] = np.where(
+        pred_visible, pred_kps_arr[:, :, 0] * (ORIG_W / input_w), -1.0
+    )
+    pred_kps_arr[:, :, 1] = np.where(
+        pred_visible, pred_kps_arr[:, :, 1] * (ORIG_H / input_h), -1.0
+    )
+
+    pred_center_visible = (pred_center_arr[:, 0] >= 0) & (pred_center_arr[:, 1] >= 0)
+    pred_center_arr[:, 0] = np.where(
+        pred_center_visible, pred_center_arr[:, 0] * (ORIG_W / input_w), -1.0
+    )
+    pred_center_arr[:, 1] = np.where(
+        pred_center_visible, pred_center_arr[:, 1] * (ORIG_H / input_h), -1.0
+    )
+
+    homographies = [estimate_homography(kps)[0] for kps in pred_kps_arr]
 
     metrics = compute_all_metrics(
         pred_kps_arr, gt_kps_arr, masks_arr,
         pred_center_arr, gt_center_arr, center_mask_arr,
-        fps=fps, params_M=params_M,
+        fps=fps, params_M=params_M, homographies=homographies,
     )
     return metrics
+
+
+def _parse_confidence_threshold(value):
+    if value.lower() in {"none", "null"}:
+        return None
+    return float(value)
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
@@ -154,6 +186,8 @@ def main():
     parser.add_argument('--split', default='test')
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--device', default=None)
+    parser.add_argument('--max_samples', type=int, default=None)
+    parser.add_argument('--confidence_threshold', type=_parse_confidence_threshold, default=0.3)
     args = parser.parse_args()
 
     device = (torch.device(args.device) if args.device else
@@ -174,7 +208,11 @@ def main():
         model = HRNetPose()
         cfg = HRNET
 
-    metrics = _eval_model(model, cfg, args.checkpoint, args.split, args.batch_size, device)
+    metrics = _eval_model(
+        model, cfg, args.checkpoint, args.split, args.batch_size, device,
+        max_samples=args.max_samples,
+        confidence_threshold=args.confidence_threshold,
+    )
 
     print(f"\n{'─' * 40}")
     print(f"Model: {args.model}")

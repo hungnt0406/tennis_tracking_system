@@ -19,7 +19,13 @@ import sys
 ROOT = pathlib.Path(__file__).parent.parent
 
 
-def run_eval(model: str, ckpt, split: str = "test"):
+def run_eval(
+    model: str,
+    ckpt,
+    split: str = "test",
+    max_samples: int | None = None,
+    confidence_threshold: str | None = None,
+):
     """Launch evaluation as a subprocess so models don't share GPU memory."""
     cmd = [
         sys.executable, "-m", "evaluation.evaluate",
@@ -27,6 +33,11 @@ def run_eval(model: str, ckpt, split: str = "test"):
         "--checkpoint", str(ckpt),
         "--split",      split,
     ]
+    if max_samples is not None:
+        cmd.extend(["--max_samples", str(max_samples)])
+    if confidence_threshold is not None:
+        cmd.extend(["--confidence_threshold", confidence_threshold])
+
     print(f"\n{'='*60}")
     print(f"Evaluating {model} ...")
     print(f"{'='*60}")
@@ -57,7 +68,13 @@ def compare(args):
 
     all_metrics = {}
     for model, ckpt in available.items():
-        metrics = run_eval(model, ckpt, split=args.split)
+        metrics = run_eval(
+            model,
+            ckpt,
+            split=args.split,
+            max_samples=args.max_samples,
+            confidence_threshold=args.confidence_threshold,
+        )
         if metrics is not None:
             all_metrics[model] = metrics
 
@@ -77,6 +94,9 @@ def compare(args):
         "pck@10px",
         "pck@25px",
         "mean_kp_error_px",
+        "mean_reproj_err_cm",
+        "max_reproj_err_cm",
+        "homography_success_rate",
         "court_center_pck@7px",
         "params_M",
         "FPS",
@@ -122,5 +142,16 @@ if __name__ == "__main__":
         "--split",
         default="test",
         help="Dataset split to evaluate on (default: test).",
+    )
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=None,
+        help="Optional sample cap forwarded to evaluation.evaluate.",
+    )
+    parser.add_argument(
+        "--confidence_threshold",
+        default=None,
+        help='Optional heatmap threshold forwarded to evaluation.evaluate, e.g. "0.3" or "none".',
     )
     compare(parser.parse_args())
