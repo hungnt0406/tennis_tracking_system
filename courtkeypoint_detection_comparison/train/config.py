@@ -16,3 +16,4 @@ SHARED = dict(
 TRACKNET_COURT = {**SHARED, "stride": 1, "gaussian_radius": 15, "use_imagenet_norm": False}
 RESNET50       = {**SHARED, "stride": 4, "gaussian_radius": 8,  "use_imagenet_norm": True}
 HRNET          = {**SHARED, "stride": 4, "gaussian_radius": 8,  "use_imagenet_norm": True}
+MOBILENETV3    = {**SHARED, "stride": 1, "gaussian_radius": 15, "use_imagenet_norm": True}

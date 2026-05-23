@@ -16,7 +16,7 @@ import numpy as np
 import torch
 
 from data.dataset import CourtKeypointDataset
-from train.config import TRACKNET_COURT, RESNET50, HRNET
+from train.config import TRACKNET_COURT, RESNET50, HRNET, MOBILENETV3
 from evaluation.metrics import compute_all_metrics
 from homography.estimate import estimate_homography
 
@@ -181,7 +181,7 @@ def main():
         description="Evaluate a court keypoint detection model on a dataset split."
     )
     parser.add_argument('--model', required=True,
-                        choices=['tracknet_court', 'resnet50', 'hrnet'])
+                        choices=['tracknet_court', 'resnet50', 'hrnet', 'mobilenetv3'])
     parser.add_argument('--checkpoint', required=True)
     parser.add_argument('--split', default='test')
     parser.add_argument('--batch_size', type=int, default=8)
@@ -203,6 +203,10 @@ def main():
         from models.resnet50_pose import ResNet50Pose
         model = ResNet50Pose()
         cfg = RESNET50
+    elif args.model == 'mobilenetv3':
+        from models.mobilenetv3_pose import MobileNetV3SmallPose
+        model = MobileNetV3SmallPose()
+        cfg = MOBILENETV3
     else:
         from models.hrnet import HRNetPose
         model = HRNetPose()

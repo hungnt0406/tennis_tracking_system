@@ -58,6 +58,7 @@ def compare(args):
         "tracknet_court": args.tracknet_court_ckpt,
         "resnet50":       args.resnet50_ckpt,
         "hrnet":          args.hrnet_ckpt,
+        "mobilenetv3":    args.mobilenetv3_ckpt,
     }
 
     # Only evaluate models whose checkpoints are provided
@@ -137,6 +138,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--hrnet_ckpt",
         default=str(_ckpt_dir / "hrnet_best.pt"),
+    )
+    parser.add_argument(
+        "--mobilenetv3_ckpt",
+        default=str(_ckpt_dir / "mobilenetv3_best.pt"),
     )
     parser.add_argument(
         "--split",
