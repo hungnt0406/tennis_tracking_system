@@ -103,8 +103,17 @@ def train(args):
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
     best_pck = 0.0
     patience_counter = 0
+    start_epoch = 1
 
-    for epoch in range(1, epochs + 1):
+    if args.resume is not None:
+        ckpt_path = pathlib.Path(args.resume)
+        ckpt = torch.load(ckpt_path, map_location=device)
+        model.load_state_dict(ckpt['model_state'])
+        best_pck = ckpt.get('best_pck', 0.0)
+        start_epoch = ckpt.get('epoch', 0) + 1
+        print(f"Resumed from {ckpt_path} | start_epoch={start_epoch} | best_pck={best_pck:.4f}")
+
+    for epoch in range(start_epoch, epochs + 1):
         # ── train ──────────────────────────────────────────────────────────
         model.train()
         train_loss = 0.0
@@ -165,4 +174,6 @@ if __name__ == "__main__":
     parser.add_argument('--data_dir',    type=str, default=None,
                         help='Path to data dir containing data_train.json, data_val.json, images/. '
                              'Defaults to the data/ folder in this repo.')
+    parser.add_argument('--resume',      type=str, default=None,
+                        help='Path to a checkpoint .pt to load model weights from and continue training.')
     train(parser.parse_args())
