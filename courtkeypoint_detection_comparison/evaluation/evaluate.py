@@ -12,12 +12,15 @@ import json
 import pathlib
 import time
 
+import cv2
 import numpy as np
 import torch
 
 from data.dataset import CourtKeypointDataset
+from data.preprocessing import line_intersection
 from train.config import TRACKNET_COURT, RESNET50, HRNET, MOBILENETV3
 from evaluation.metrics import compute_all_metrics
+from evaluation.refine import refine_keypoint
 from homography.estimate import estimate_homography
 
 
@@ -54,7 +57,8 @@ def heatmap_to_coords(heatmap_ch, stride, confidence_threshold=None):
 # ─── Shared evaluation loop ───────────────────────────────────────────────────
 
 def _eval_model(model, cfg, checkpoint_path, split, batch_size, device,
-                max_samples=None, confidence_threshold=0.3):
+                max_samples=None, confidence_threshold=0.3,
+                refine=False, refine_crop_size=40, refine_max_drift=20.0):
     ckpt = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(ckpt['model_state'])
     model.eval().to(device)
@@ -127,9 +131,6 @@ def _eval_model(model, cfg, checkpoint_path, split, batch_size, device,
                 all_gt_center.append(gt_center_b)
                 all_center_mask.append(center_visible)
 
-    elapsed = time.time() - t0
-    fps = len(ds) / elapsed
-
     pred_kps_arr    = np.stack(all_pred_kps)    # (N, 14, 2)
     gt_kps_arr      = np.stack(all_gt_kps)      # (N, 14, 2) — original pixel space
     masks_arr       = np.stack(all_masks)        # (N, 14) bool
@@ -157,6 +158,48 @@ def _eval_model(model, cfg, checkpoint_path, split, batch_size, device,
     pred_center_arr[:, 1] = np.where(
         pred_center_visible, pred_center_arr[:, 1] * (ORIG_H / input_h), -1.0
     )
+
+    if refine:
+        n_attempted = 0
+        n_success = 0
+        for i in range(pred_kps_arr.shape[0]):
+            img_path = ds.images_dir / (ds.records[i]["id"] + ".png")
+            img_bgr = cv2.imread(str(img_path))
+            if img_bgr is None:
+                continue
+            for k in range(14):
+                if not pred_visible[i, k]:
+                    continue
+                n_attempted += 1
+                x_new, y_new, ok = refine_keypoint(
+                    img_bgr,
+                    float(pred_kps_arr[i, k, 0]),
+                    float(pred_kps_arr[i, k, 1]),
+                    crop_size=refine_crop_size,
+                    max_drift=refine_max_drift,
+                )
+                pred_kps_arr[i, k, 0] = x_new
+                pred_kps_arr[i, k, 1] = y_new
+                if ok:
+                    n_success += 1
+
+            corners = pred_kps_arr[i, :4]
+            if (corners[:, 0] >= 0).all() and (corners[:, 1] >= 0).all():
+                pt = line_intersection(
+                    ((float(corners[0, 0]), float(corners[0, 1])),
+                     (float(corners[3, 0]), float(corners[3, 1]))),
+                    ((float(corners[1, 0]), float(corners[1, 1])),
+                     (float(corners[2, 0]), float(corners[2, 1]))),
+                )
+                if pt is not None and np.isfinite(pt[0]) and np.isfinite(pt[1]):
+                    pred_center_arr[i, 0] = pt[0]
+                    pred_center_arr[i, 1] = pt[1]
+
+        pct = (100.0 * n_success / n_attempted) if n_attempted else 0.0
+        print(f"Refinement: {n_success}/{n_attempted} keypoints refined ({pct:.1f}%)")
+
+    elapsed = time.time() - t0
+    fps = len(ds) / elapsed
 
     homographies = [estimate_homography(kps)[0] for kps in pred_kps_arr]
 
@@ -188,6 +231,9 @@ def main():
     parser.add_argument('--device', default=None)
     parser.add_argument('--max_samples', type=int, default=None)
     parser.add_argument('--confidence_threshold', type=_parse_confidence_threshold, default=0.3)
+    parser.add_argument('--refine', action='store_true', default=False)
+    parser.add_argument('--refine_crop_size', type=int, default=40)
+    parser.add_argument('--refine_max_drift', type=float, default=5)
     args = parser.parse_args()
 
     device = (torch.device(args.device) if args.device else
@@ -216,6 +262,9 @@ def main():
         model, cfg, args.checkpoint, args.split, args.batch_size, device,
         max_samples=args.max_samples,
         confidence_threshold=args.confidence_threshold,
+        refine=args.refine,
+        refine_crop_size=args.refine_crop_size,
+        refine_max_drift=args.refine_max_drift,
     )
 
     print(f"\n{'─' * 40}")
@@ -228,7 +277,8 @@ def main():
 
     out_dir = pathlib.Path(__file__).parent.parent / 'results'
     out_dir.mkdir(exist_ok=True)
-    out_path = out_dir / f'{args.model}_metrics.json'
+    suffix = '_refined' if args.refine else ''
+    out_path = out_dir / f'{args.model}_metrics{suffix}.json'
     with open(out_path, 'w') as f:
         json.dump({k: (v if not isinstance(v, float) or not np.isnan(v) else None)
                    for k, v in metrics.items()}, f, indent=2)
