@@ -4,7 +4,7 @@ Split loader for court keypoint detection.
 data_train.json (6630 records) → train split as-is.
 data_val.json   (2211 records) → deterministically split 50/50 by sorted MD5
                                   hash of record id: first half → val,
-                                  second half → test.
+                                  second half → test, minus known-bad GT.
 """
 
 import hashlib
@@ -13,6 +13,13 @@ from pathlib import Path
 
 
 _DEFAULT_DATA_DIR = Path(__file__).parent
+
+_BAD_TEST_RECORD_IDS = {
+    # Semantically wrong GT: annotations mark a small net/service-box region
+    # instead of the full-court keypoint layout.
+    "zKIU4fWsRTM_1500",
+    "PuAPCalPLM4_1700",
+}
 
 
 def _load_json(path: Path) -> list[dict]:
@@ -51,9 +58,12 @@ def load_records(split: str, data_dir: str | Path | None = None) -> list[dict]:
         return hashlib.md5(str(r["id"]).encode()).hexdigest()
 
     sorted_records = sorted(records, key=_sort_key)
-    mid = len(sorted_records) // 2  # 1105 each side for 2211 records
+    mid = len(sorted_records) // 2  # 1105 val / 1106 test before exclusions
 
     if split == "val":
         return sorted_records[:mid]
     else:  # "test"
-        return sorted_records[mid:]
+        return [
+            r for r in sorted_records[mid:]
+            if str(r["id"]) not in _BAD_TEST_RECORD_IDS
+        ]
