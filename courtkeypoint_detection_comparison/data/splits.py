@@ -19,6 +19,8 @@ _BAD_TEST_RECORD_IDS = {
     # instead of the full-court keypoint layout.
     "zKIU4fWsRTM_1500",
     "PuAPCalPLM4_1700",
+    "-5zNAhwRoPE_200",
+    "UJHVcyTNo-k_2150",
 }
 
 
