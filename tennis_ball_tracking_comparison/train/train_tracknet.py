@@ -19,8 +19,11 @@ from models.tracknet import TrackNet, heatmap_to_coords
 from train.config import TRACKNET, SPLITS_CSV, CHECKPOINT_DIR, SEED
 
 
-def pixel_accuracy(pred_heatmap, gt_heatmap, threshold_px=5, hm_size=256):
-    """Fraction of frames where predicted peak ≤ threshold_px from GT peak."""
+def pixel_accuracy(pred_heatmap, gt_heatmap, threshold_px=5):
+    """Fraction of frames where predicted peak ≤ threshold_px from GT peak.
+
+    Distance is measured in the resized heatmap's pixel space (IMG_H × IMG_W).
+    """
     pred_coords = heatmap_to_coords(pred_heatmap, threshold=0.5)
     gt_coords   = heatmap_to_coords(gt_heatmap,   threshold=0.1)
     # Ignore frames where GT has no ball

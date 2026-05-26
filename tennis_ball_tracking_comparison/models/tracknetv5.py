@@ -61,8 +61,8 @@ class _TemporalAttention(nn.Module):
 
 class TrackNetV5(nn.Module):
     """
-    Input : (B, 9, 256, 256)  — 3 RGB frames concatenated channel-wise
-    Output: (B, 1, 256, 256)  — ball probability heatmap (sigmoid applied)
+    Input : (B, 9, H, W)  — 3 RGB frames concatenated channel-wise (H, W % 16 == 0)
+    Output: (B, 1, H, W)  — ball probability heatmap (sigmoid applied)
     """
 
     def __init__(self):

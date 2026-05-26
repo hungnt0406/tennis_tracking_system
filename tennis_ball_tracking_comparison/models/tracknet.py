@@ -1,6 +1,9 @@
 """
 TrackNet: CNN encoder-decoder that takes 3 stacked RGB frames (9 channels)
-and outputs a 256×256 heatmap predicting the ball position.
+and outputs a heatmap predicting the ball position.
+
+The network is fully convolutional; the only spatial constraint is that the
+input H and W must each be divisible by 16 (four 2× max-pool stages).
 
 Architecture follows the original TrackNet paper (Huang et al., 2019):
 VGG-like encoder → symmetric decoder with skip connections.
@@ -24,8 +27,8 @@ class _VGGBlock(nn.Sequential):
 
 class TrackNet(nn.Module):
     """
-    Input : (B, 9, 256, 256)  — 3 RGB frames concatenated channel-wise
-    Output: (B, 1, 256, 256)  — ball probability heatmap (sigmoid applied)
+    Input : (B, 9, H, W)  — 3 RGB frames concatenated channel-wise (H, W % 16 == 0)
+    Output: (B, 1, H, W)  — ball probability heatmap (sigmoid applied)
     """
 
     def __init__(self):

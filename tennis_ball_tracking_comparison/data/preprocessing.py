@@ -5,8 +5,11 @@ import numpy as np
 import cv2
 
 
-IMG_H = 256
-IMG_W = 256
+# 16:9-aspect input resolution, matching the yastrebksv/TrackNet reference
+# (640×360). 360 is not divisible by 16 (the V1 U-Net has 4 MaxPool2d stages),
+# so we round the height up to 368.
+IMG_H = 368
+IMG_W = 640
 
 
 def resize_frame(img: np.ndarray, h: int = IMG_H, w: int = IMG_W) -> np.ndarray:

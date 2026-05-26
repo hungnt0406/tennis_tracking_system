@@ -57,7 +57,7 @@ def _eval_tracknet(checkpoint: str, splits_csv: str, device):
             B = frames.shape[0]
             total_frames += B
 
-            # Scale heatmap coords → pixel coords (heatmap is already 256×256)
+            # Coords are in the resized heatmap's pixel space (IMG_H × IMG_W).
             pred_xys.append(pred_coords)
             gt_xys.append(gt_coords)
             pred_vis.append(pred_coords[:, 0] >= 0)
