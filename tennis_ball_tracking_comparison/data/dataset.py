@@ -84,7 +84,7 @@ class TrackNetDataset(Dataset):
 
         ball_x = x if vis > 0 else -1.0
         ball_y = y if vis > 0 else -1.0
-        heatmap = make_gaussian_heatmap(ball_x, ball_y, orig_w, orig_h)
+        heatmap = make_gaussian_heatmap(ball_x, ball_y, orig_w, orig_h, sigma=2.0)
 
         return (
             torch.from_numpy(tensor),
