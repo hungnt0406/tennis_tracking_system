@@ -10,13 +10,25 @@ import os
 import sys
 
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from data.dataset import TrackNetDataset
 from models.tracknet import TrackNet, heatmap_to_coords
 from train.config import TRACKNET, SPLITS_CSV, CHECKPOINT_DIR, SEED
+
+
+def weighted_bce(pred, target, pos_weight):
+    """BCE that upweights the Gaussian-footprint pixels (target > 0).
+
+    Counters the extreme positive/negative pixel imbalance at high resolution,
+    where the ball footprint is ~0.07% of the frame and plain BCE barely moves
+    the heatmap toward the ball.
+    """
+    weight = torch.ones_like(target)
+    weight[target > 0] = pos_weight
+    return F.binary_cross_entropy(pred, target, weight=weight)
 
 
 def pixel_accuracy(pred_heatmap, gt_heatmap, threshold_px=5):
@@ -55,7 +67,7 @@ def train(args):
                                   weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5)
-    criterion = nn.BCELoss()
+    pos_weight = args.pos_weight
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     best_val_loss = float("inf")
@@ -70,9 +82,11 @@ def train(args):
             frames   = frames.to(device)
             heatmaps = heatmaps.to(device)
             pred = model(frames)
-            loss = criterion(pred, heatmaps)
+            loss = weighted_bce(pred, heatmaps, pos_weight)
             optimizer.zero_grad()
             loss.backward()
+            if args.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             optimizer.step()
             train_loss += loss.item()
             pbar.set_postfix(loss=f"{loss.item():.4f}")
@@ -87,7 +101,7 @@ def train(args):
                 frames   = frames.to(device)
                 heatmaps = heatmaps.to(device)
                 pred = model(frames)
-                val_loss += criterion(pred, heatmaps).item()
+                val_loss += weighted_bce(pred, heatmaps, pos_weight).item()
                 val_acc  += pixel_accuracy(pred.cpu(), heatmaps.cpu())
         val_loss /= len(val_dl)
         val_acc  /= len(val_dl)
@@ -118,6 +132,8 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int,   default=TRACKNET["batch_size"])
     parser.add_argument("--lr",         type=float, default=TRACKNET["lr"])
     parser.add_argument("--patience",   type=int,   default=TRACKNET["patience"])
+    parser.add_argument("--pos_weight", type=float, default=TRACKNET["pos_weight"])
+    parser.add_argument("--grad_clip",  type=float, default=TRACKNET["grad_clip"])
     parser.add_argument("--checkpoint_dir", default=CHECKPOINT_DIR)
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Limit train+val to N samples each (quick convergence check)")
