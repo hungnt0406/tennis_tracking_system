@@ -52,7 +52,7 @@ class MotionAttentionModule(nn.Module):
 class TrackNetV4(nn.Module):
     """
     Input : (B, 9, H, W)  — 3 RGB frames concatenated channel-wise (H, W % 16 == 0)
-    Output: (B, 1, H, W)  — ball probability heatmap (sigmoid applied)
+    Output: (B, 256, H, W)  — per-pixel intensity-class logits (no sigmoid)
     """
 
     def __init__(self):
@@ -89,7 +89,7 @@ class TrackNetV4(nn.Module):
         self.up1 = nn.ConvTranspose2d(64, 64, 2, stride=2)
         self.dec1 = _VGGBlock(128, 64, 2)
 
-        self.head = nn.Conv2d(64, 1, 1)
+        self.head = nn.Conv2d(64, 256, 1)
 
     def forward(self, x):
         # Motion attention at full input resolution (B, 1, H, W)
@@ -127,4 +127,4 @@ class TrackNetV4(nn.Module):
         # Apply motion attention at full resolution
         d1 = d1 * attn_full
 
-        return torch.sigmoid(self.head(d1))
+        return self.head(d1)

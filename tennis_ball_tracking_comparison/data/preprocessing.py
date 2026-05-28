@@ -11,6 +11,12 @@ import cv2
 IMG_H = 368
 IMG_W = 640
 
+# Broad quantized-Gaussian target for the 256-way classification recipe
+# (yastrebksv/TrackNet gt_gen.py): a (2*SIZE+1) square Gaussian with the given
+# variance, scaled to integer intensities in [0, 255].
+GAUSS_SIZE = 20
+GAUSS_VARIANCE = 10
+
 
 def resize_frame(img: np.ndarray, h: int = IMG_H, w: int = IMG_W) -> np.ndarray:
     return cv2.resize(img, (w, h), interpolation=cv2.INTER_LINEAR)
@@ -51,6 +57,45 @@ def make_gaussian_heatmap(x: float, y: float, orig_w: int, orig_h: int,
     if x0 < x1 and y0 < y1:
         heatmap[y0:y1, x0:x1] = kernel[ky0:ky1, kx0:kx1]
     return heatmap
+
+
+def make_gaussian_target_quantized(x: float, y: float, orig_w: int, orig_h: int,
+                                   out_h: int = IMG_H, out_w: int = IMG_W,
+                                   size: int = GAUSS_SIZE,
+                                   variance: int = GAUSS_VARIANCE) -> np.ndarray:
+    """Quantized Gaussian class-map for the 256-way classification recipe.
+
+    Returns an (out_h, out_w) int64 array with intensities in [0, 255]: a broad
+    Gaussian over a (2*size+1) square (peak normalized to 255) centred on the
+    ball, or all zeros when the ball is absent (x < 0 or y < 0). Matches
+    yastrebksv/TrackNet gt_gen.py (SIZE=20, VARIANCE=10).
+    """
+    target = np.zeros((out_h, out_w), dtype=np.int64)
+    if x < 0 or y < 0:
+        return target
+
+    cx = int(x / orig_w * out_w)
+    cy = int(y / orig_h * out_h)
+
+    half = size
+    offset = np.arange(-half, half + 1)
+    dx, dy = np.meshgrid(offset, offset)
+    kernel = np.exp(-(dx ** 2 + dy ** 2) / (2.0 * variance))
+    kernel = (kernel / kernel.max() * 255.0).astype(np.int64)
+
+    full = 2 * half + 1
+    x0, x1 = cx - half, cx + half + 1
+    y0, y1 = cy - half, cy + half + 1
+    kx0 = max(0, -x0)
+    ky0 = max(0, -y0)
+    kx1 = full - max(0, x1 - out_w)
+    ky1 = full - max(0, y1 - out_h)
+    x0, x1 = max(0, x0), min(out_w, x1)
+    y0, y1 = max(0, y0), min(out_h, y1)
+
+    if x0 < x1 and y0 < y1:
+        target[y0:y1, x0:x1] = kernel[ky0:ky1, kx0:kx1]
+    return target
 
 
 def coords_to_yolo(x: float, y: float, orig_w: int, orig_h: int,

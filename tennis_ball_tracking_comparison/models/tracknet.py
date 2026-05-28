@@ -9,6 +9,7 @@ Architecture follows the original TrackNet paper (Huang et al., 2019):
 VGG-like encoder → symmetric decoder with skip connections.
 """
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -28,7 +29,7 @@ class _VGGBlock(nn.Sequential):
 class TrackNet(nn.Module):
     """
     Input : (B, 9, H, W)  — 3 RGB frames concatenated channel-wise (H, W % 16 == 0)
-    Output: (B, 1, H, W)  — ball probability heatmap (sigmoid applied)
+    Output: (B, 256, H, W)  — per-pixel intensity-class logits (no sigmoid)
     """
 
     def __init__(self):
@@ -63,7 +64,7 @@ class TrackNet(nn.Module):
         self.up1 = nn.ConvTranspose2d(64, 64, 2, stride=2)
         self.dec1 = _VGGBlock(128, 64, 2)
 
-        self.head = nn.Conv2d(64, 1, 1)
+        self.head = nn.Conv2d(64, 256, 1)
 
     def forward(self, x):
         e1 = self.enc1(x)
@@ -92,7 +93,7 @@ class TrackNet(nn.Module):
         d1 = self.up1(d2)
         d1 = self.dec1(torch.cat([d1, e1], dim=1))
 
-        return torch.sigmoid(self.head(d1))
+        return self.head(d1)
 
 
 def heatmap_to_coords(heatmap: torch.Tensor, threshold: float = 0.5):
@@ -108,4 +109,46 @@ def heatmap_to_coords(heatmap: torch.Tensor, threshold: float = 0.5):
     coords = torch.stack([xs.float(), ys.float()], dim=1)
     absent = vals < threshold
     coords[absent] = -1.0
+    return coords
+
+
+def intensity_to_coords(intensity: torch.Tensor, threshold: float = 128,
+                        use_hough: bool = False):
+    """Convert a (B, H, W) intensity map in [0, 255] to (B, 2) pixel coords.
+
+    Used for the 256-way classification recipe, where ``intensity`` is the
+    per-pixel argmax over the model's 256 logit channels (or a GT class-map).
+    Returns (-1, -1) for frames with no ball. Coordinates stay in the resized
+    (IMG_H × IMG_W) pixel space.
+
+    use_hough=False: take the global argmax peak per frame; (-1, -1) if the peak
+        intensity is below ``threshold``.
+    use_hough=True: per-frame cv2.threshold@127 + cv2.HoughCircles (reference
+        params); take the first/strongest detected circle's centre, else (-1, -1).
+    """
+    B, H, W = intensity.shape
+
+    if not use_hough:
+        flat = intensity.view(B, -1)
+        vals, indices = flat.max(dim=1)
+        ys = (indices // W).float()
+        xs = (indices % W).float()
+        coords = torch.stack([xs, ys], dim=1)
+        coords[vals < threshold] = -1.0
+        return coords
+
+    import cv2
+    maps = intensity.detach().cpu().numpy().astype(np.uint8)
+    coords = torch.full((B, 2), -1.0)
+    for i in range(B):
+        _, binary = cv2.threshold(maps[i], 127, 255, cv2.THRESH_BINARY)
+        circles = cv2.HoughCircles(binary, cv2.HOUGH_GRADIENT, dp=1, minDist=1,
+                                   param1=50, param2=2, minRadius=2, maxRadius=7)
+        if circles is not None:
+            # Reference takes the first/strongest circle (HoughCircles orders by
+            # accumulator strength) — gating on count would reject every multi-vote
+            # case, collapsing recall under minDist=1, param2=2.
+            cx, cy = circles[0, 0, 0], circles[0, 0, 1]
+            coords[i, 0] = float(cx)
+            coords[i, 1] = float(cy)
     return coords

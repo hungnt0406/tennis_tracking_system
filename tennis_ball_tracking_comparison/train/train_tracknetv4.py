@@ -14,27 +14,19 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from data.dataset import TrackNetDataset
-from models.tracknet import heatmap_to_coords
+from models.tracknet import intensity_to_coords
 from models.tracknetv4 import TrackNetV4
 from train.config import TRACKNETV4, SPLITS_CSV, CHECKPOINT_DIR, SEED
 
 
-def weighted_bce(pred, target, pos_weight):
-    """BCE that upweights the Gaussian-footprint pixels (target > 0).
+def pixel_accuracy(logits, gt_classmap, threshold_px=5):
+    """Fraction of GT-visible frames where predicted peak ≤ threshold_px from GT.
 
-    Counters the extreme positive/negative pixel imbalance at high resolution,
-    where the ball footprint is ~0.07% of the frame and plain BCE barely moves
-    the heatmap toward the ball.
+    Uses the fast argmax-peak readout (no Hough) on the (B, 256, H, W) logits and
+    the (B, H, W) GT class-map. Distance is in the resized pixel space.
     """
-    weight = torch.ones_like(target)
-    weight[target > 0] = pos_weight
-    return F.binary_cross_entropy(pred, target, weight=weight)
-
-
-def pixel_accuracy(pred_heatmap, gt_heatmap, threshold_px=5):
-    """Fraction of frames where predicted peak ≤ threshold_px from GT peak."""
-    pred_coords = heatmap_to_coords(pred_heatmap, threshold=0.5)
-    gt_coords   = heatmap_to_coords(gt_heatmap,   threshold=0.1)
+    pred_coords = intensity_to_coords(logits.argmax(dim=1), use_hough=False)
+    gt_coords   = intensity_to_coords(gt_classmap, use_hough=False, threshold=1)
     valid = (gt_coords[:, 0] >= 0)
     if not valid.any():
         return 0.0
@@ -48,9 +40,9 @@ def train(args):
     print(f"Device: {device}")
 
     train_ds = TrackNetDataset(args.splits_csv, "train", augment=True,
-                               max_samples=args.max_samples)
+                               max_samples=args.max_samples, target_mode="classmap")
     val_ds   = TrackNetDataset(args.splits_csv, "val",   augment=False,
-                               max_samples=args.max_samples)
+                               max_samples=args.max_samples, target_mode="classmap")
     train_dl = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True,
                           num_workers=4, pin_memory=True)
     val_dl   = DataLoader(val_ds,   batch_size=args.batch_size, shuffle=False,
@@ -59,14 +51,13 @@ def train(args):
     print(f"Train: {len(train_ds)} samples | Val: {len(val_ds)} samples")
 
     model = TrackNetV4().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
-                                  weight_decay=1e-5)
+    optimizer = torch.optim.Adadelta(model.parameters(), lr=args.lr,
+                                     weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5)
-    pos_weight = args.pos_weight
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
-    best_val_loss = float("inf")
+    best_val_acc = -1.0   # checkpoint on val_acc; val_loss decouples from it at high res
     patience_counter = 0
 
     for epoch in range(1, args.epochs + 1):
@@ -74,15 +65,13 @@ def train(args):
         model.train()
         train_loss = 0.0
         pbar = tqdm(train_dl, desc=f"Epoch {epoch:3d} [train]", leave=False)
-        for frames, heatmaps, _ in pbar:
-            frames   = frames.to(device)
-            heatmaps = heatmaps.to(device)
-            pred = model(frames)
-            loss = weighted_bce(pred, heatmaps, pos_weight)
+        for frames, targets, _ in pbar:
+            frames  = frames.to(device)
+            targets = targets.to(device)
+            logits = model(frames)
+            loss = F.cross_entropy(logits, targets)
             optimizer.zero_grad()
             loss.backward()
-            if args.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             optimizer.step()
             train_loss += loss.item()
             pbar.set_postfix(loss=f"{loss.item():.4f}")
@@ -93,12 +82,12 @@ def train(args):
         val_loss = 0.0
         val_acc  = 0.0
         with torch.no_grad():
-            for frames, heatmaps, _ in val_dl:
-                frames   = frames.to(device)
-                heatmaps = heatmaps.to(device)
-                pred = model(frames)
-                val_loss += weighted_bce(pred, heatmaps, pos_weight).item()
-                val_acc  += pixel_accuracy(pred.cpu(), heatmaps.cpu())
+            for frames, targets, _ in val_dl:
+                frames  = frames.to(device)
+                targets = targets.to(device)
+                logits = model(frames)
+                val_loss += F.cross_entropy(logits, targets).item()
+                val_acc  += pixel_accuracy(logits.cpu(), targets.cpu())
         val_loss /= len(val_dl)
         val_acc  /= len(val_dl)
 
@@ -106,8 +95,8 @@ def train(args):
         print(f"Epoch {epoch:3d} | train_loss={train_loss:.4f} "
               f"val_loss={val_loss:.4f} val_acc@5px={val_acc:.3f}")
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
             patience_counter = 0
             ckpt = os.path.join(args.checkpoint_dir, "tracknetv4_best.pt")
             torch.save(model.state_dict(), ckpt)
@@ -118,7 +107,7 @@ def train(args):
                 print("Early stopping.")
                 break
 
-    print(f"Training complete. Best val_loss={best_val_loss:.4f}")
+    print(f"Training complete. Best val_acc@5px={best_val_acc:.3f}")
 
 
 if __name__ == "__main__":
@@ -128,8 +117,6 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int,   default=TRACKNETV4["batch_size"])
     parser.add_argument("--lr",         type=float, default=TRACKNETV4["lr"])
     parser.add_argument("--patience",   type=int,   default=TRACKNETV4["patience"])
-    parser.add_argument("--pos_weight", type=float, default=TRACKNETV4["pos_weight"])
-    parser.add_argument("--grad_clip",  type=float, default=TRACKNETV4["grad_clip"])
     parser.add_argument("--checkpoint_dir", default=CHECKPOINT_DIR)
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Limit train+val to N samples each (quick convergence check)")

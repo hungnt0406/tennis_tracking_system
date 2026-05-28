@@ -33,13 +33,13 @@ from train.config import (
 # ─── Per-model prediction helpers ────────────────────────────────────────────
 
 def _eval_tracknet(checkpoint: str, splits_csv: str, device):
-    from models.tracknet import TrackNet, heatmap_to_coords
+    from models.tracknet import TrackNet, intensity_to_coords
 
     model = TrackNet().to(device)
     model.load_state_dict(torch.load(checkpoint, map_location=device))
     model.eval()
 
-    ds = TrackNetDataset(splits_csv, "test", augment=False)
+    ds = TrackNetDataset(splits_csv, "test", augment=False, target_mode="classmap")
     dl = DataLoader(ds, batch_size=16, shuffle=False, num_workers=4)
 
     pred_xys, gt_xys, pred_vis, gt_vis, vis_cls = [], [], [], [], []
@@ -49,10 +49,12 @@ def _eval_tracknet(checkpoint: str, splits_csv: str, device):
     with torch.no_grad():
         for frames, heatmaps, visibility in dl:
             frames = frames.to(device)
-            pred_hm = model(frames)
+            logits = model(frames)
 
-            pred_coords = heatmap_to_coords(pred_hm.cpu(), threshold=0.5).numpy()
-            gt_coords   = heatmap_to_coords(heatmaps, threshold=0.1).numpy()
+            pred_coords = intensity_to_coords(
+                logits.argmax(dim=1).cpu(), use_hough=True).numpy()
+            gt_coords   = intensity_to_coords(
+                heatmaps, use_hough=False, threshold=1).numpy()
 
             B = frames.shape[0]
             total_frames += B
@@ -74,13 +76,13 @@ def _eval_tracknet(checkpoint: str, splits_csv: str, device):
 
 def _eval_tracknetv4(checkpoint: str, splits_csv: str, device):
     from models.tracknetv4 import TrackNetV4
-    from models.tracknet import heatmap_to_coords
+    from models.tracknet import intensity_to_coords
 
     model = TrackNetV4().to(device)
     model.load_state_dict(torch.load(checkpoint, map_location=device))
     model.eval()
 
-    ds = TrackNetDataset(splits_csv, "test", augment=False)
+    ds = TrackNetDataset(splits_csv, "test", augment=False, target_mode="classmap")
     dl = DataLoader(ds, batch_size=16, shuffle=False, num_workers=4)
 
     pred_xys, gt_xys, pred_vis, gt_vis, vis_cls = [], [], [], [], []
@@ -90,10 +92,12 @@ def _eval_tracknetv4(checkpoint: str, splits_csv: str, device):
     with torch.no_grad():
         for frames, heatmaps, visibility in dl:
             frames = frames.to(device)
-            pred_hm = model(frames)
+            logits = model(frames)
 
-            pred_coords = heatmap_to_coords(pred_hm.cpu(), threshold=0.5).numpy()
-            gt_coords   = heatmap_to_coords(heatmaps, threshold=0.1).numpy()
+            pred_coords = intensity_to_coords(
+                logits.argmax(dim=1).cpu(), use_hough=True).numpy()
+            gt_coords   = intensity_to_coords(
+                heatmaps, use_hough=False, threshold=1).numpy()
 
             total_frames += frames.shape[0]
             pred_xys.append(pred_coords)

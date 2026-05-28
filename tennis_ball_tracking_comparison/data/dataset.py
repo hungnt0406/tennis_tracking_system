@@ -15,7 +15,7 @@ from torch.utils.data import Dataset
 
 from data.preprocessing import (
     IMG_H, IMG_W, Augmenter, resize_frame, normalize,
-    make_gaussian_heatmap, coords_to_yolo,
+    make_gaussian_heatmap, make_gaussian_target_quantized, coords_to_yolo,
 )
 
 
@@ -46,8 +46,9 @@ class TrackNetDataset(Dataset):
     """
 
     def __init__(self, splits_csv: str, split: str, augment: bool = False,
-                 max_samples: int = None):
+                 max_samples: int = None, target_mode: str = "heatmap"):
         self.augment = Augmenter(enabled=augment)
+        self.target_mode = target_mode
         records = _load_splits(splits_csv, split)
         groups = _group_by_clip(records)
 
@@ -84,11 +85,18 @@ class TrackNetDataset(Dataset):
 
         ball_x = x if vis > 0 else -1.0
         ball_y = y if vis > 0 else -1.0
-        heatmap = make_gaussian_heatmap(ball_x, ball_y, orig_w, orig_h, sigma=2.0)
+
+        if self.target_mode == "classmap":
+            target = torch.from_numpy(
+                make_gaussian_target_quantized(ball_x, ball_y, orig_w, orig_h)
+            )  # (H, W) long, quantized-Gaussian class-map for CrossEntropy
+        else:
+            heatmap = make_gaussian_heatmap(ball_x, ball_y, orig_w, orig_h, sigma=2.0)
+            target = torch.from_numpy(heatmap).unsqueeze(0)  # (1, H, W) float
 
         return (
             torch.from_numpy(tensor),
-            torch.from_numpy(heatmap).unsqueeze(0),
+            target,
             torch.tensor([vis], dtype=torch.long),
         )
 

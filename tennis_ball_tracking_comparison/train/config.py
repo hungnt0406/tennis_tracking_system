@@ -17,24 +17,20 @@ PIN_MEMORY     = True
 TRACKNET = dict(
     batch_size    = 8,
     epochs        = 50,
-    lr            = 1e-4,
+    lr            = 1.0,         # Adadelta default (yastrebksv/TrackNet recipe)
     weight_decay  = 1e-5,
     patience      = 10,          # early stopping
     heatmap_threshold = 0.5,     # for peak → coord conversion
-    pos_weight    = 1000.0,      # upweight Gaussian-footprint pixels in BCE
-    grad_clip     = 1.0,         # clip grad norm; high pos_weight can spike BCE grads
 )
 
 # ─── TrackNetV4 ───────────────────────────────────────────────────────────────
 TRACKNETV4 = dict(
     batch_size    = 8,
     epochs        = 50,
-    lr            = 1e-4,
+    lr            = 1.0,         # Adadelta default (yastrebksv/TrackNet recipe)
     weight_decay  = 1e-5,
     patience      = 10,
     heatmap_threshold = 0.5,
-    pos_weight    = 1000.0,      # upweight Gaussian-footprint pixels in BCE
-    grad_clip     = 1.0,         # clip grad norm; high pos_weight can spike BCE grads
 )
 
 # ─── TrackNetV5 ───────────────────────────────────────────────────────────────
