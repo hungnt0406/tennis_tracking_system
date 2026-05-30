@@ -19,7 +19,7 @@ TRACKNET = dict(
     epochs        = 50,
     lr            = 1.0,         # Adadelta default (yastrebksv/TrackNet recipe)
     weight_decay  = 1e-5,
-    patience      = 10,          # early stopping
+    patience      = 40,          # early stopping
     heatmap_threshold = 0.5,     # for peak → coord conversion
 )
 
@@ -29,7 +29,7 @@ TRACKNETV4 = dict(
     epochs        = 50,
     lr            = 1.0,         # Adadelta default (yastrebksv/TrackNet recipe)
     weight_decay  = 1e-5,
-    patience      = 10,
+    patience      = 40,
     heatmap_threshold = 0.5,
 )
 
