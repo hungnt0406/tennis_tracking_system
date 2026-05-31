@@ -15,7 +15,7 @@ PIN_MEMORY     = True
 
 # ─── TrackNet ─────────────────────────────────────────────────────────────────
 TRACKNET = dict(
-    batch_size    = 8,
+    batch_size    = 4,
     epochs        = 50,
     lr            = 1.0,         # Adadelta default (yastrebksv/TrackNet recipe)
     weight_decay  = 1e-5,
@@ -25,7 +25,7 @@ TRACKNET = dict(
 
 # ─── TrackNetV4 ───────────────────────────────────────────────────────────────
 TRACKNETV4 = dict(
-    batch_size    = 8,
+    batch_size    = 4,
     epochs        = 50,
     lr            = 1.0,         # Adadelta default (yastrebksv/TrackNet recipe)
     weight_decay  = 1e-5,

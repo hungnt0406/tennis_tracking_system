@@ -40,7 +40,7 @@ def _eval_tracknet(checkpoint: str, splits_csv: str, device):
     model.eval()
 
     ds = TrackNetDataset(splits_csv, "test", augment=False, target_mode="classmap")
-    dl = DataLoader(ds, batch_size=16, shuffle=False, num_workers=4)
+    dl = DataLoader(ds, batch_size=4, shuffle=False, num_workers=4)
 
     pred_xys, gt_xys, pred_vis, gt_vis, vis_cls = [], [], [], [], []
     t0 = time.time()
@@ -83,7 +83,7 @@ def _eval_tracknetv4(checkpoint: str, splits_csv: str, device):
     model.eval()
 
     ds = TrackNetDataset(splits_csv, "test", augment=False, target_mode="classmap")
-    dl = DataLoader(ds, batch_size=16, shuffle=False, num_workers=4)
+    dl = DataLoader(ds, batch_size=4, shuffle=False, num_workers=4)
 
     pred_xys, gt_xys, pred_vis, gt_vis, vis_cls = [], [], [], [], []
     t0 = time.time()
