@@ -1,5 +1,5 @@
 """
-Create train/val/test splits from game1, game2, game7.
+Create train/val/test splits: games 1-9 for train/val, game 10 held out for test.
 Outputs a CSV with columns: game, clip, frame_path, label_path, split
 """
 
@@ -11,12 +11,11 @@ from pathlib import Path
 
 
 GAMES = {
-    "train_val": ["game1", "game2"],
-    "test_only": ["game7"],
+    "train_val": [f"game{i}" for i in range(1, 10)],  # games 1-9
+    "test_only": ["game10"],
 }
-TRAIN_RATIO = 0.70
 VAL_RATIO = 0.15
-# test = 1 - TRAIN_RATIO - VAL_RATIO for train_val games; all clips for test_only games
+# train = 1 - VAL_RATIO of each train_val game's clips; all clips for test_only games
 
 
 def collect_clips(dataset_root: Path, game: str):
@@ -28,17 +27,14 @@ def collect_clips(dataset_root: Path, game: str):
     return clips
 
 
-def split_clips(clips, train_ratio, val_ratio, seed=42):
+def split_train_val(clips, val_ratio, seed=42):
     rng = random.Random(seed)
     shuffled = clips[:]
     rng.shuffle(shuffled)
-    n = len(shuffled)
-    n_train = max(1, int(n * train_ratio))
-    n_val = max(1, int(n * val_ratio))
-    train = shuffled[:n_train]
-    val = shuffled[n_train : n_train + n_val]
-    test = shuffled[n_train + n_val :]
-    return train, val, test
+    n_val = max(1, int(len(shuffled) * val_ratio))
+    val = shuffled[:n_val]
+    train = shuffled[n_val:]
+    return train, val
 
 
 def build_records(clips, split, game):
@@ -81,10 +77,9 @@ def create_splits(dataset_root: str, output_path: str, seed: int = 42):
 
     for game in GAMES["train_val"]:
         clips = collect_clips(dataset_root, game)
-        train_clips, val_clips, test_clips = split_clips(clips, TRAIN_RATIO, VAL_RATIO, seed)
+        train_clips, val_clips = split_train_val(clips, VAL_RATIO, seed)
         all_records.extend(build_records(train_clips, "train", game))
         all_records.extend(build_records(val_clips, "val", game))
-        all_records.extend(build_records(test_clips, "test", game))
 
     for game in GAMES["test_only"]:
         clips = collect_clips(dataset_root, game)
