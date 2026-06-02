@@ -1,1 +1,2 @@
 courtkeypoint_detection_comparison/checkpoints/*.pt filter=lfs diff=lfs merge=lfs -text
+tennis_ball_tracking_comparison/checkpoints/*.pt filter=lfs diff=lfs merge=lfs -text

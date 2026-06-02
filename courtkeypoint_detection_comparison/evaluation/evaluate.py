@@ -232,7 +232,7 @@ def main():
     parser.add_argument('--max_samples', type=int, default=None)
     parser.add_argument('--confidence_threshold', type=_parse_confidence_threshold, default=0.3)
     parser.add_argument('--refine', action='store_true', default=False)
-    parser.add_argument('--refine_crop_size', type=int, default=40)
+    parser.add_argument('--refine_crop_size', type=int, default=30)
     parser.add_argument('--refine_max_drift', type=float, default=5)
     args = parser.parse_args()
 
