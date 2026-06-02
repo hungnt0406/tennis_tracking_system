@@ -170,7 +170,7 @@ def main():
         description="Visualise court keypoint predictions on N test samples."
     )
     parser.add_argument('--model', required=True,
-                        choices=['tracknet_court', 'resnet50', 'hrnet'])
+                        choices=['tracknet_court', 'resnet50', 'hrnet', 'mobilenetv3'])
     parser.add_argument('--checkpoint', required=True)
     parser.add_argument('--split', default='test')
     parser.add_argument('--num_samples', '-n', type=int, default=1,
