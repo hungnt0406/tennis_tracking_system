@@ -18,7 +18,7 @@ from tqdm import tqdm
 from data.dataset import TrackNetDataset
 from models.tracknet import intensity_to_coords
 from models.tracknetv4 import TrackNetV4
-from train.config import TRACKNETV4, SPLITS_CSV, CHECKPOINT_DIR, SEED
+from train.config import TRACKNETV4, SPLITS_CSV, CHECKPOINT_DIR, SEED, NUM_WORKERS
 
 
 BYTES_IN_GIB = 1024 ** 3
@@ -170,6 +170,9 @@ def train(args):
     device = torch.device(args.device if args.device else
                           ("cuda" if torch.cuda.is_available() else "cpu"))
     print(f"Device: {device}")
+    if device.type == "cuda":
+        torch.backends.cudnn.benchmark = True          # fixed 368×640 input → fast conv algos
+        torch.set_float32_matmul_precision("high")     # TF32 on A100 tensor cores
 
     train_ds = TrackNetDataset(args.splits_csv, "train", augment=True,
                                max_samples=args.max_samples, target_mode="classmap")
@@ -178,9 +181,9 @@ def train(args):
     batch_size = auto_select_batch_size(train_ds, args, device) if args.auto_batch else args.batch_size
     pin = device.type == "cuda"
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True,
-                          num_workers=4, pin_memory=pin)
+                          num_workers=args.num_workers, pin_memory=pin)
     val_dl   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False,
-                          num_workers=4, pin_memory=pin)
+                          num_workers=args.num_workers, pin_memory=pin)
 
     print(f"Train: {len(train_ds)} samples | Val: {len(val_ds)} samples | Batch: {batch_size}")
 
@@ -284,6 +287,8 @@ if __name__ == "__main__":
                         help="Limit train+val to N samples each (quick convergence check)")
     parser.add_argument("--device", default=None,
                         help="Torch device, e.g. cuda, cuda:2, or cpu.")
+    parser.add_argument("--num_workers", type=int, default=NUM_WORKERS,
+                        help="DataLoader worker processes (set ~vCPU count on a big box).")
     parser.add_argument("--auto_batch", action="store_true",
                         help="Probe CUDA memory and use the largest safe batch size.")
     parser.add_argument("--target_vram_gb", type=float, default=23.0,
