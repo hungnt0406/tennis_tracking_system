@@ -21,6 +21,9 @@ _BAD_TEST_RECORD_IDS = {
     "PuAPCalPLM4_1700",
     "-5zNAhwRoPE_200",
     "UJHVcyTNo-k_2150",
+    # Additional bad annotations.
+    "1ueaSm-2-lo_1650",
+    "oTsZKnpPiRw_800",
 }
 
 
