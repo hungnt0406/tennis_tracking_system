@@ -1,0 +1,10 @@
+{
+  "threshold": 0.2,
+  "weights": {
+    "smooth_window": 5,
+    "w_ymin": 1.0,
+    "w_vflip": 1.0,
+    "w_accel": 1.0
+  },
+  "k": 3
+}
