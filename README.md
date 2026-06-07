@@ -13,6 +13,12 @@ The system is organized around four parts:
 - final pipeline: combine ball, court, and bounce modules into one inference
   workflow with overlay video output.
 
+## Demo
+
+![Tennis tracking demo](final_model/outputs/test250_game10_clip1.gif)
+
+[View original MP4 demo](final_model/outputs/test250_game10_clip1.mp4)
+
 ## Repository Layout
 
 ```text
