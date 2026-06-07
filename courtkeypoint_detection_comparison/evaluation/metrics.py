@@ -31,6 +31,59 @@ def mean_keypoint_error(pred_kps, gt_kps, in_image_mask):
     return float(dists[in_image_mask].mean())
 
 
+def median_keypoint_error(pred_kps, gt_kps, in_image_mask):
+    """Median Euclidean pixel error over detected kps (GT-visible & predicted-visible)."""
+    dists = np.linalg.norm(pred_kps - gt_kps, axis=-1)
+    matched = in_image_mask & (pred_kps[..., 0] >= 0) & (pred_kps[..., 1] >= 0)
+    if matched.sum() == 0:
+        return float('nan')
+    return float(np.median(dists[matched]))
+
+
+def max_keypoint_error(pred_kps, gt_kps, in_image_mask):
+    """Max Euclidean pixel error over detected kps (GT-visible & predicted-visible).
+
+    Restricted to detected keypoints so a missed keypoint (the -1 sentinel) does
+    not masquerade as a huge localization error; misses are captured by recall.
+    """
+    dists = np.linalg.norm(pred_kps - gt_kps, axis=-1)
+    matched = in_image_mask & (pred_kps[..., 0] >= 0) & (pred_kps[..., 1] >= 0)
+    if matched.sum() == 0:
+        return float('nan')
+    return float(dists[matched].max())
+
+
+def keypoint_detection_prf(pred_kps, gt_kps, in_image_mask, threshold_px):
+    """
+    Detection precision / recall / F1 at a pixel threshold.
+
+    A keypoint counts as a positive prediction when it is predicted-visible
+    (coords >= 0, i.e. heatmap peak above the confidence threshold). A true
+    positive is a predicted-visible keypoint that is also GT-visible and within
+    threshold_px.
+
+      precision = TP / (predicted-visible)
+      recall    = TP / (GT-visible)          # equals PCK@threshold
+      f1        = harmonic mean of the two
+
+    Returns (precision, recall, f1).
+    """
+    dists = np.linalg.norm(pred_kps - gt_kps, axis=-1)
+    pred_visible = (pred_kps[..., 0] >= 0) & (pred_kps[..., 1] >= 0)
+    tp = int((pred_visible & in_image_mask & (dists <= threshold_px)).sum())
+    n_pred = int(pred_visible.sum())
+    n_gt = int(in_image_mask.sum())
+    precision = tp / n_pred if n_pred > 0 else float('nan')
+    recall = tp / n_gt if n_gt > 0 else float('nan')
+    if precision != precision or recall != recall:
+        f1 = float('nan')
+    elif precision + recall == 0:
+        f1 = 0.0
+    else:
+        f1 = 2 * precision * recall / (precision + recall)
+    return float(precision), float(recall), float(f1)
+
+
 def per_keypoint_pck(pred_kps, gt_kps, in_image_mask, threshold_px):
     """Returns (14,) array of per-keypoint PCK."""
     dists = np.linalg.norm(pred_kps - gt_kps, axis=-1)  # (N, 14)
@@ -121,12 +174,18 @@ def compute_all_metrics(pred_kps, gt_kps, in_image_mask,
     homographies: optional iterable of image->court 3x3 matrices or None
     Returns dict.
     """
+    p5, r5, f5 = keypoint_detection_prf(pred_kps, gt_kps, in_image_mask, 5.0)
+    p7, r7, f7 = keypoint_detection_prf(pred_kps, gt_kps, in_image_mask, 7.0)
     metrics = {
         "pck@5px":  keypoint_pck(pred_kps, gt_kps, in_image_mask, 5.0),
         "pck@7px":  keypoint_pck(pred_kps, gt_kps, in_image_mask, 7.0),
         "pck@10px": keypoint_pck(pred_kps, gt_kps, in_image_mask, 10.0),
         "pck@25px": keypoint_pck(pred_kps, gt_kps, in_image_mask, 25.0),
-        "mean_kp_error_px": mean_keypoint_error(pred_kps, gt_kps, in_image_mask),
+        "precision@5px": p5, "recall@5px": r5, "f1@5px": f5,
+        "precision@7px": p7, "recall@7px": r7, "f1@7px": f7,
+        "mean_kp_error_px":   mean_keypoint_error(pred_kps, gt_kps, in_image_mask),
+        "median_kp_error_px": median_keypoint_error(pred_kps, gt_kps, in_image_mask),
+        "max_kp_error_px":    max_keypoint_error(pred_kps, gt_kps, in_image_mask),
         "per_kp_pck@7px":   per_keypoint_pck(pred_kps, gt_kps, in_image_mask, 7.0).tolist(),
         "court_center_pck@7px": court_center_accuracy(pred_center, gt_center, center_mask, 7.0),
         "params_M": params_M,

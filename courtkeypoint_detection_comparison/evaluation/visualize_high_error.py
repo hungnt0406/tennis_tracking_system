@@ -30,8 +30,9 @@ from homography.court_template import COURT_KEYPOINTS_M
 from homography.estimate import estimate_homography
 
 
-def _per_frame_reproj_err_cm(gt_kps_orig, mask, h_img_to_court):
-    """Mean reprojection error in cm for one frame, or None if no homography."""
+def _per_frame_reproj_err_cm(gt_kps_orig, mask, h_img_to_court, metric='mean'):
+    """Per-frame reprojection error in cm (mean or max over keypoints), or None
+    if no homography."""
     if h_img_to_court is None:
         return None
     valid = mask & np.isfinite(gt_kps_orig).all(axis=1) & (gt_kps_orig[:, 0] >= 0)
@@ -39,8 +40,8 @@ def _per_frame_reproj_err_cm(gt_kps_orig, mask, h_img_to_court):
         return None
     pts = gt_kps_orig[valid].astype(np.float64).reshape(-1, 1, 2)
     projected = cv2.perspectiveTransform(pts, h_img_to_court.astype(np.float64)).reshape(-1, 2)
-    errors_m = np.linalg.norm(projected - COURT_KEYPOINTS_M[valid], axis=1)
-    return float((errors_m * 100.0).mean())
+    errors_cm = np.linalg.norm(projected - COURT_KEYPOINTS_M[valid], axis=1) * 100.0
+    return float(errors_cm.max() if metric == 'max' else errors_cm.mean())
 
 
 def visualize_high_error(args):
@@ -70,7 +71,7 @@ def visualize_high_error(args):
     n_failed_h = 0
     high_error_frames = []  # list of (record_id, err_cm)
 
-    print(f"Scanning {n_total} {args.split} frames for mean_reproj_err > {args.threshold_cm} cm …")
+    print(f"Scanning {n_total} {args.split} frames for {args.metric}_reproj_err > {args.threshold_cm} cm …")
 
     with torch.no_grad():
         for idx in range(n_total):
@@ -110,7 +111,7 @@ def visualize_high_error(args):
             mask = (gt_kps_orig[:, 0] >= 0)
 
             h_img_to_court, _, _ = estimate_homography(pred_kps_orig)
-            err_cm = _per_frame_reproj_err_cm(gt_kps_orig, mask, h_img_to_court)
+            err_cm = _per_frame_reproj_err_cm(gt_kps_orig, mask, h_img_to_court, args.metric)
             if err_cm is None:
                 n_failed_h += 1
                 continue
@@ -156,7 +157,10 @@ def main():
     parser.add_argument('--checkpoint', required=True)
     parser.add_argument('--split', default='test')
     parser.add_argument('--threshold_cm', type=float, default=100.0,
-                        help='Save frames whose mean reproj error exceeds this (cm).')
+                        help='Save frames whose per-frame reproj error exceeds this (cm).')
+    parser.add_argument('--metric', choices=['mean', 'max'], default='mean',
+                        help="Per-frame reduction over keypoints: 'mean' (default, "
+                             "matches mean_reproj_err_cm) or 'max' (matches max_reproj_err_cm).")
     parser.add_argument('--confidence_threshold',
                         type=_parse_confidence_threshold, default=0.3)
     parser.add_argument('--device', default=None)
