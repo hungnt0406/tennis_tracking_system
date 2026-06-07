@@ -51,7 +51,13 @@ slide_report/
 
 # Claude Code agent configs (local-only)
 .claude/
+.codex/
 
 # Large datasets — not source code
 Dataset/
 courtkeypoint_detection_comparison/data/images/
+
+
+.codegraph
+.mcp.json
+

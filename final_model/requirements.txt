@@ -1,0 +1,14 @@
+torch
+torchvision        # MobileNetV3 backbone imports it
+opencv-python
+numpy
+scipy              # Savitzky-Golay in bounce feature pipeline
+scikit-learn       # GBM pickle (HistGradientBoostingRegressor)
+joblib             # GBM checkpoint serialization
+matplotlib         # classify_in_out uses matplotlib.path.Path
+pillow             # torchvision dep; explicit for clean install
+gradio>=4.0
+onnx
+onnxruntime
+catboost           # optional; sklearn fallback used when absent
+tqdm               # progress bars in inference loops
