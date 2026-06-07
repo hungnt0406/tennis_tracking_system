@@ -23,7 +23,7 @@ from train.config import SPLITS_CSV, RESULTS_DIR, CHECKPOINT_DIR
 
 
 def _load_tracknet(checkpoint, device):
-    from models.tracknet import TrackNet, heatmap_to_coords
+    from models.tracknet import TrackNet, intensity_to_coords
     model = TrackNet().to(device)
     model.load_state_dict(torch.load(checkpoint, map_location=device))
     model.eval()
@@ -39,8 +39,10 @@ def _load_tracknet(checkpoint, device):
         tensor = np.concatenate([normalize(f) for f in frames], axis=0)
         inp = torch.from_numpy(tensor).unsqueeze(0).to(device)
         with torch.no_grad():
-            hm = model(inp)
-        coords = heatmap_to_coords(hm.cpu(), threshold=0.5)[0].numpy()
+            logits = model(inp)
+        coords = intensity_to_coords(
+            logits.argmax(dim=1).cpu(), use_hough=True
+        )[0].numpy()
         return coords  # (2,) or (-1, -1)
 
     return predict
@@ -118,7 +120,7 @@ def _load_tracknetv3(checkpoint, device):
 
 def _load_tracknetv4(checkpoint, device):
     from models.tracknetv4 import TrackNetV4
-    from models.tracknet import heatmap_to_coords
+    from models.tracknet import intensity_to_coords
     model = TrackNetV4().to(device)
     model.load_state_dict(torch.load(checkpoint, map_location=device))
     model.eval()
@@ -134,8 +136,10 @@ def _load_tracknetv4(checkpoint, device):
         tensor = np.concatenate([normalize(f) for f in frames], axis=0)
         inp = torch.from_numpy(tensor).unsqueeze(0).to(device)
         with torch.no_grad():
-            hm = model(inp)
-        return heatmap_to_coords(hm.cpu(), threshold=0.5)[0].numpy()
+            logits = model(inp)
+        return intensity_to_coords(
+            logits.argmax(dim=1).cpu(), use_hough=True
+        )[0].numpy()
 
     return predict
 
@@ -210,13 +214,17 @@ def _load_yolo(checkpoint, device):
 
 
 def overlay_prediction(img_bgr, pred_xy, gt_xy, model_name):
-    """Draw GT (green) and prediction (red) on a copy of the image."""
+    """Draw GT (green) and prediction (red) on a copy of the original image.
+
+    Model predictions are decoded in resized IMG_W x IMG_H space. CSV labels are
+    original-frame pixel coordinates, so only predictions are scaled for overlay.
+    """
     out = img_bgr.copy()
     h, w = out.shape[:2]
     sx, sy = w / IMG_W, h / IMG_H
 
     if gt_xy[0] >= 0:
-        gx, gy = int(gt_xy[0] * sx), int(gt_xy[1] * sy)
+        gx, gy = int(gt_xy[0]), int(gt_xy[1])
         cv2.circle(out, (gx, gy), 8, (0, 255, 0), 2)
         cv2.putText(out, "GT", (gx + 5, gy - 5), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 255, 0), 1)
