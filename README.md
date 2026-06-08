@@ -1,8 +1,13 @@
 # Tennis Tracking System
 
-A research and demo workspace for tennis video analysis. The repository compares
-multiple model families for three core tasks, then packages the strongest pieces
-into a runnable pipeline that produces annotated tennis clips.
+An IN/OUT determination system for tennis video. The project objective is to
+decide whether a detected ball bounce lands inside or outside the selected court
+bounds by combining ball tracking, court geometry, homography estimation, and
+bounce detection.
+
+The repository also includes model-comparison experiments for the main computer
+vision components, then packages the strongest pieces into a runnable pipeline
+that produces annotated tennis clips and an IN/OUT summary.
 
 The system is organized around four parts:
 
@@ -10,8 +15,8 @@ The system is organized around four parts:
 - court keypoint detection: detect court landmarks and estimate an image-to-court
   homography;
 - bounce detection: detect bounce events from a ball trajectory;
-- final pipeline: combine ball, court, and bounce modules into one inference
-  workflow with overlay video output.
+- final pipeline: combine ball, court, and bounce modules into an IN/OUT
+  inference workflow with overlay video output.
 
 ## Demo
 
@@ -27,10 +32,7 @@ The system is organized around four parts:
 |-- courtkeypoint_detection_comparison/    # court landmark detection and homography experiments
 |-- bounce_detection_comparison/           # heuristic, GBM, and TCN bounce detection experiments
 |-- final_model/                           # packaged inference pipeline and Gradio demo
-|-- Dataset/                               # local TrackNet-style dataset, gitignored
-|-- remote_results/                        # local/remote generated visual outputs
-|-- plans/                                 # research notes and implementation plans
-`-- slide_report/                          # presentation/report material
+`-- Dataset/                               # local TrackNet-style dataset, gitignored
 ```
 
 Each comparison folder is its own local Python project with its own
@@ -107,8 +109,8 @@ input clip or frame directory
   -> MobileNetV3 court keypoints
   -> image-to-court homography
   -> GBM bounce detection
-  -> qualitative in/out labeling
-  -> annotated MP4 plus JSON summary
+  -> IN/OUT classification against singles or doubles bounds
+  -> annotated MP4 plus IN/OUT JSON summary
 ```
 
 Default checkpoints used by the pipeline:
@@ -308,9 +310,9 @@ and preview videos.
 - Bounce detection in `bounce_detection_comparison/` is benchmarked on
   ground-truth ball trajectories from `Label.csv`. Final pipeline bounces are
   based on predicted ball trajectories.
-- In/out labels from the final pipeline are qualitative demo outputs. They
-  depend on the estimated court homography and are not benchmarked as a formal
-  line-call system.
+- IN/OUT determination is the main project objective. The final pipeline
+  estimates it from predicted bounce locations and the court homography, so
+  reliability depends on both ball tracking and court keypoint quality.
 
 ## Documentation Map
 
