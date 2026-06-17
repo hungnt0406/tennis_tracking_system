@@ -1,0 +1,472 @@
+% ===========================================================================
+% references.bib  --  IEEE numbered style (\bibliographystyle{IEEEtran})
+% Every entry below was verified against the primary source (venue, year,
+% pages, DOI) during drafting of Chapter 1. Add further entries (Ch.2 lineage
+% papers: TrackNetV2-V5, CenterNet, CatBoost, PyTorch,
+% Hartley & Zisserman, etc.) as later chapters are written -- see plan M2.
+% ===========================================================================
+
+@article{thomas2017cvsports,
+  author  = {Graham Thomas and Rikke Gade and Thomas B. Moeslund and Peter Carr and Adrian Hilton},
+  title   = {Computer vision for sports: Current applications and research topics},
+  journal = {Computer Vision and Image Understanding},
+  volume  = {159},
+  pages   = {3--18},
+  year    = {2017},
+  doi     = {10.1016/j.cviu.2017.04.011}
+}
+
+@article{collins2008hawkeye,
+  author  = {Harry Collins and Robert Evans},
+  title   = {You cannot be serious! {Public} understanding of technology with special reference to ``{Hawk-Eye}''},
+  journal = {Public Understanding of Science},
+  volume  = {17},
+  number  = {3},
+  pages   = {283--308},
+  year    = {2008},
+  doi     = {10.1177/0963662508093370}
+}
+
+@inproceedings{huang2019tracknet,
+  author    = {Yu-Chuan Huang and I-No Liao and Ching-Hsuan Chen and Ts\`{\i}-U\'{\i} \.{I}k and Wen-Chih Peng},
+  title     = {{TrackNet}: A deep learning network for tracking high-speed and tiny objects in sports applications},
+  booktitle = {Proc. 16th IEEE Int. Conf. Advanced Video and Signal Based Surveillance (AVSS)},
+  address   = {Taipei, Taiwan},
+  pages     = {1--8},
+  year      = {2019},
+  doi       = {10.1109/AVSS.2019.8909871}
+}
+
+@inproceedings{redmon2016yolo,
+  author    = {Joseph Redmon and Santosh Divvala and Ross Girshick and Ali Farhadi},
+  title     = {You only look once: Unified, real-time object detection},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Las Vegas, NV, USA},
+  pages     = {779--788},
+  year      = {2016},
+  doi       = {10.1109/CVPR.2016.91}
+}
+
+@inproceedings{he2016resnet,
+  author    = {Kaiming He and Xiangyu Zhang and Shaoqing Ren and Jian Sun},
+  title     = {Deep residual learning for image recognition},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Las Vegas, NV, USA},
+  pages     = {770--778},
+  year      = {2016},
+  doi       = {10.1109/CVPR.2016.90}
+}
+
+@inproceedings{sun2019hrnet,
+  author    = {Ke Sun and Bin Xiao and Dong Liu and Jingdong Wang},
+  title     = {Deep high-resolution representation learning for human pose estimation},
+  booktitle = {Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Long Beach, CA, USA},
+  pages     = {5693--5703},
+  year      = {2019},
+  doi       = {10.1109/CVPR.2019.00584}
+}
+
+@inproceedings{howard2019mobilenetv3,
+  author    = {Andrew Howard and others},
+  title     = {Searching for {MobileNetV3}},
+  booktitle = {Proc. IEEE/CVF Int. Conf. Computer Vision (ICCV)},
+  address   = {Seoul, Korea},
+  pages     = {1314--1324},
+  year      = {2019},
+  doi       = {10.1109/ICCV.2019.00140}
+}
+
+@article{bai2018tcn,
+  author  = {Shaojie Bai and J. Zico Kolter and Vladlen Koltun},
+  title   = {An empirical evaluation of generic convolutional and recurrent networks for sequence modeling},
+  journal = {arXiv preprint arXiv:1803.01271},
+  year    = {2018}
+}
+
+@inproceedings{chen2016xgboost,
+  author    = {Tianqi Chen and Carlos Guestrin},
+  title     = {{XGBoost}: A scalable tree boosting system},
+  booktitle = {Proc. 22nd ACM SIGKDD Int. Conf. Knowledge Discovery and Data Mining (KDD)},
+  address   = {San Francisco, CA, USA},
+  pages     = {785--794},
+  year      = {2016},
+  doi       = {10.1145/2939672.2939785}
+}
+
+@article{fischler1981ransac,
+  author  = {Martin A. Fischler and Robert C. Bolles},
+  title   = {Random sample consensus: A paradigm for model fitting with applications to image analysis and automated cartography},
+  journal = {Communications of the ACM},
+  volume  = {24},
+  number  = {6},
+  pages   = {381--395},
+  year    = {1981},
+  doi     = {10.1145/358669.358692}
+}
+
+% ===========================================================================
+% Chapter 2 (Background & Related Work) -- verified during drafting (M2).
+% Each entry confirmed against the primary source (CVF open access, IEEE
+% Xplore, ACM DL, NeurIPS/JMLR proceedings, arXiv, or publisher page).
+% ===========================================================================
+
+% --- 2.1 Object detection & small-object localisation -----------------------
+
+@inproceedings{girshick2014rcnn,
+  author    = {Ross Girshick and Jeff Donahue and Trevor Darrell and Jitendra Malik},
+  title     = {Rich feature hierarchies for accurate object detection and semantic segmentation},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Columbus, OH, USA},
+  pages     = {580--587},
+  year      = {2014},
+  doi       = {10.1109/CVPR.2014.81}
+}
+
+@inproceedings{girshick2015fastrcnn,
+  author    = {Ross Girshick},
+  title     = {Fast {R-CNN}},
+  booktitle = {Proc. IEEE Int. Conf. Computer Vision (ICCV)},
+  address   = {Santiago, Chile},
+  pages     = {1440--1448},
+  year      = {2015},
+  doi       = {10.1109/ICCV.2015.169}
+}
+
+@article{ren2017fasterrcnn,
+  author  = {Shaoqing Ren and Kaiming He and Ross Girshick and Jian Sun},
+  title   = {Faster {R-CNN}: Towards real-time object detection with region proposal networks},
+  journal = {IEEE Trans. Pattern Anal. Mach. Intell.},
+  volume  = {39},
+  number  = {6},
+  pages   = {1137--1149},
+  year    = {2017},
+  doi     = {10.1109/TPAMI.2016.2577031}
+}
+
+@inproceedings{liu2016ssd,
+  author    = {Wei Liu and Dragomir Anguelov and Dumitru Erhan and Christian Szegedy and Scott Reed and Cheng-Yang Fu and Alexander C. Berg},
+  title     = {{SSD}: Single shot {MultiBox} detector},
+  booktitle = {Proc. European Conf. Computer Vision (ECCV)},
+  address   = {Amsterdam, The Netherlands},
+  pages     = {21--37},
+  year      = {2016},
+  doi       = {10.1007/978-3-319-46448-0_2}
+}
+
+@inproceedings{lin2017fpn,
+  author    = {Tsung-Yi Lin and Piotr Doll\'{a}r and Ross Girshick and Kaiming He and Bharath Hariharan and Serge Belongie},
+  title     = {Feature pyramid networks for object detection},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Honolulu, HI, USA},
+  pages     = {2117--2125},
+  year      = {2017},
+  doi       = {10.1109/CVPR.2017.106}
+}
+
+@inproceedings{lin2017focalloss,
+  author    = {Tsung-Yi Lin and Priya Goyal and Ross Girshick and Kaiming He and Piotr Doll\'{a}r},
+  title     = {Focal loss for dense object detection},
+  booktitle = {Proc. IEEE Int. Conf. Computer Vision (ICCV)},
+  address   = {Venice, Italy},
+  pages     = {2980--2988},
+  year      = {2017},
+  doi       = {10.1109/ICCV.2017.324}
+}
+
+@article{redmon2018yolov3,
+  author  = {Joseph Redmon and Ali Farhadi},
+  title   = {{YOLOv3}: An incremental improvement},
+  journal = {arXiv preprint arXiv:1804.02767},
+  year    = {2018}
+}
+
+@misc{jocher2024yolo11,
+  author       = {Glenn Jocher and Jing Qiu},
+  title        = {Ultralytics {YOLO11}},
+  howpublished = {Software, version 11.0.0},
+  year         = {2024},
+  note         = {\url{https://github.com/ultralytics/ultralytics}}
+}
+
+@inproceedings{newell2016hourglass,
+  author    = {Alejandro Newell and Kaiyu Yang and Jia Deng},
+  title     = {Stacked hourglass networks for human pose estimation},
+  booktitle = {Proc. European Conf. Computer Vision (ECCV)},
+  address   = {Amsterdam, The Netherlands},
+  pages     = {483--499},
+  year      = {2016},
+  doi       = {10.1007/978-3-319-46484-8_29}
+}
+
+@inproceedings{wei2016cpm,
+  author    = {Shih-En Wei and Varun Ramakrishna and Takeo Kanade and Yaser Sheikh},
+  title     = {Convolutional pose machines},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Las Vegas, NV, USA},
+  pages     = {4724--4732},
+  year      = {2016},
+  doi       = {10.1109/CVPR.2016.511}
+}
+
+@article{zhou2019centernet,
+  author  = {Xingyi Zhou and Dequan Wang and Philipp Kr\"{a}henb\"{u}hl},
+  title   = {Objects as points},
+  journal = {arXiv preprint arXiv:1904.07850},
+  year    = {2019}
+}
+
+@article{cheng2023smallobjectsurvey,
+  author  = {Gong Cheng and Xiang Yuan and Xiwen Yao and Kebing Yan and Qinghua Zeng and Xingxing Xie and Junwei Han},
+  title   = {Towards large-scale small object detection: Survey and benchmarks},
+  journal = {IEEE Trans. Pattern Anal. Mach. Intell.},
+  volume  = {45},
+  number  = {11},
+  pages   = {13467--13488},
+  year    = {2023},
+  doi     = {10.1109/TPAMI.2023.3290594}
+}
+
+% --- 2.2 Ball tracking in sports video --------------------------------------
+
+@inproceedings{sun2020tracknetv2,
+  author    = {Nien-En Sun and Yu-Ching Lin and Shao-Ping Chuang and Tzu-Han Hsu and Dung-Ru Yu and Ho-Yi Chung and Tsi-Ui Ik},
+  title     = {{TrackNetV2}: Efficient shuttlecock tracking network},
+  booktitle = {Proc. Int. Conf. Pervasive Artificial Intelligence (ICPAI)},
+  address   = {Taipei, Taiwan},
+  pages     = {86--91},
+  year      = {2020},
+  doi       = {10.1109/ICPAI51961.2020.00023}
+}
+
+@inproceedings{chen2023tracknetv3,
+  author    = {Yu-Jou Chen and Yu-Shuen Wang},
+  title     = {{TrackNetV3}: Enhancing shuttlecock tracking with augmentations and trajectory rectification},
+  booktitle = {Proc. 5th ACM Int. Conf. Multimedia in Asia (MMAsia)},
+  address   = {Tainan, Taiwan},
+  year      = {2023},
+  doi       = {10.1145/3595916.3626370}
+}
+
+@inproceedings{raj2025tracknetv4,
+  author    = {Arjun Raj and Lei Wang and Tom Gedeon},
+  title     = {{TrackNetV4}: Enhancing fast sports object tracking with motion attention maps},
+  booktitle = {Proc. IEEE Int. Conf. Acoustics, Speech and Signal Processing (ICASSP)},
+  address   = {Hyderabad, India},
+  year      = {2025},
+  note      = {arXiv:2409.14543}
+}
+
+@misc{tang2025tracknetv5,
+  author        = {Haonan Tang and Yanjun Chen and Lezhi Jiang and Qianfei Li and Xinyu Guo},
+  title         = {{TrackNetV5}: Residual-driven spatio-temporal refinement and motion direction decoupling for fast object tracking},
+  year          = {2025},
+  eprint        = {2512.02789},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CV},
+  url           = {https://arxiv.org/abs/2512.02789}
+}
+
+@inproceedings{bewley2016sort,
+  author    = {Alex Bewley and Zongyuan Ge and Lionel Ott and Fabio Ramos and Ben Upcroft},
+  title     = {Simple online and realtime tracking},
+  booktitle = {Proc. IEEE Int. Conf. Image Processing (ICIP)},
+  address   = {Phoenix, AZ, USA},
+  pages     = {3464--3468},
+  year      = {2016},
+  doi       = {10.1109/ICIP.2016.7533003}
+}
+
+@inproceedings{wojke2017deepsort,
+  author    = {Nicolai Wojke and Alex Bewley and Dietrich Paulus},
+  title     = {Simple online and realtime tracking with a deep association metric},
+  booktitle = {Proc. IEEE Int. Conf. Image Processing (ICIP)},
+  address   = {Beijing, China},
+  pages     = {3645--3649},
+  year      = {2017},
+  doi       = {10.1109/ICIP.2017.8296962}
+}
+
+@inproceedings{voeikov2020ttnet,
+  author    = {Roman Voeikov and Nikolay Falaleev and Ruslan Baikulov},
+  title     = {{TTNet}: Real-time temporal and spatial video analysis of table tennis},
+  booktitle = {Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition Workshops (CVPRW)},
+  address   = {Seattle, WA, USA},
+  pages     = {884--885},
+  year      = {2020},
+  doi       = {10.1109/CVPRW50498.2020.00450}
+}
+
+@inproceedings{reno2018cnntennis,
+  author    = {Vito Ren\`{o} and Nicola Mosca and Roberto Marani and Massimiliano Nitti and Tiziana D'Orazio and Ettore Stella},
+  title     = {Convolutional neural networks based ball detection in tennis games},
+  booktitle = {Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition Workshops (CVPRW)},
+  address   = {Salt Lake City, UT, USA},
+  pages     = {1758--1764},
+  year      = {2018},
+  doi       = {10.1109/CVPRW.2018.00228}
+}
+
+% --- 2.3 Court keypoint detection & geometric registration ------------------
+
+@inproceedings{xiao2018simplebaselines,
+  author    = {Bin Xiao and Haiping Wu and Yichen Wei},
+  title     = {Simple baselines for human pose estimation and tracking},
+  booktitle = {Proc. European Conf. Computer Vision (ECCV)},
+  address   = {Munich, Germany},
+  pages     = {472--487},
+  year      = {2018},
+  doi       = {10.1007/978-3-030-01231-1_29}
+}
+
+@inproceedings{sandler2018mobilenetv2,
+  author    = {Mark Sandler and Andrew Howard and Menglong Zhu and Andrey Zhmoginov and Liang-Chieh Chen},
+  title     = {{MobileNetV2}: Inverted residuals and linear bottlenecks},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Salt Lake City, UT, USA},
+  pages     = {4510--4520},
+  year      = {2018},
+  doi       = {10.1109/CVPR.2018.00474}
+}
+
+@inproceedings{homayounfar2017sportsfield,
+  author    = {Namdar Homayounfar and Sanja Fidler and Raquel Urtasun},
+  title     = {Sports field localization via deep structured models},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Honolulu, HI, USA},
+  pages     = {5212--5220},
+  year      = {2017},
+  doi       = {10.1109/CVPR.2017.427}
+}
+
+@inproceedings{jiang2020sportsfield,
+  author    = {Wei Jiang and Juan Camilo Gamboa Higuera and Baptiste Angles and Weiwei Sun and Mehrsan Javan and Kwang Moo Yi},
+  title     = {Optimizing through learned errors for accurate sports field registration},
+  booktitle = {Proc. IEEE/CVF Winter Conf. Applications of Computer Vision (WACV)},
+  address   = {Snowmass Village, CO, USA},
+  pages     = {201--210},
+  year      = {2020},
+  doi       = {10.1109/WACV45572.2020.9093581}
+}
+
+@inproceedings{nie2021sportsfield,
+  author    = {Xiaohan Nie and Shixing Chen and Raffay Hamid},
+  title     = {A robust and efficient framework for sports-field registration},
+  booktitle = {Proc. IEEE/CVF Winter Conf. Applications of Computer Vision (WACV)},
+  address   = {Waikoloa, HI, USA},
+  pages     = {1936--1944},
+  year      = {2021},
+  doi       = {10.1109/WACV48630.2021.00198}
+}
+
+@book{hartley2004mvg,
+  author    = {Richard Hartley and Andrew Zisserman},
+  title     = {Multiple View Geometry in Computer Vision},
+  edition   = {2nd},
+  publisher = {Cambridge Univ. Press},
+  address   = {Cambridge, U.K.},
+  year      = {2004},
+  doi       = {10.1017/CBO9780511811685}
+}
+
+@inproceedings{brachmann2017dsac,
+  author    = {Eric Brachmann and Alexander Krull and Sebastian Nowozin and Jamie Shotton and Frank Michel and Stefan Gumhold and Carsten Rother},
+  title     = {{DSAC}: Differentiable {RANSAC} for camera localization},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Honolulu, HI, USA},
+  pages     = {6684--6692},
+  year      = {2017},
+  doi       = {10.1109/CVPR.2017.267}
+}
+
+% --- 2.4 Event detection from trajectories ----------------------------------
+
+@inproceedings{lea2017tcn,
+  author    = {Colin Lea and Michael D. Flynn and Ren\'{e} Vidal and Austin Reiter and Gregory D. Hager},
+  title     = {Temporal convolutional networks for action segmentation and detection},
+  booktitle = {Proc. IEEE Conf. Computer Vision and Pattern Recognition (CVPR)},
+  address   = {Honolulu, HI, USA},
+  pages     = {1003--1012},
+  year      = {2017},
+  doi       = {10.1109/CVPR.2017.113}
+}
+
+@article{vandenoord2016wavenet,
+  author  = {A\"{a}ron van den Oord and Sander Dieleman and Heiga Zen and Karen Simonyan and Oriol Vinyals and Alex Graves and others},
+  title   = {{WaveNet}: A generative model for raw audio},
+  journal = {arXiv preprint arXiv:1609.03499},
+  year    = {2016}
+}
+
+@article{friedman2001gbm,
+  author  = {Jerome H. Friedman},
+  title   = {Greedy function approximation: A gradient boosting machine},
+  journal = {Ann. Statist.},
+  volume  = {29},
+  number  = {5},
+  pages   = {1189--1232},
+  year    = {2001},
+  doi     = {10.1214/aos/1013203451}
+}
+
+@inproceedings{prokhorenkova2018catboost,
+  author    = {Liudmila Prokhorenkova and Gleb Gusev and Aleksandr Vorobev and Anna Veronika Dorogush and Andrey Gulin},
+  title     = {{CatBoost}: Unbiased boosting with categorical features},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  address   = {Montr\'{e}al, Canada},
+  pages     = {6639--6649},
+  year      = {2018}
+}
+
+@inproceedings{ke2017lightgbm,
+  author    = {Guolin Ke and Qi Meng and Thomas Finley and Taifeng Wang and Wei Chen and Weidong Ma and Qiwei Ye and Tie-Yan Liu},
+  title     = {{LightGBM}: A highly efficient gradient boosting decision tree},
+  booktitle = {Advances in Neural Information Processing Systems (NIPS)},
+  address   = {Long Beach, CA, USA},
+  pages     = {3146--3154},
+  year      = {2017}
+}
+
+@article{pedregosa2011sklearn,
+  author  = {Fabian Pedregosa and Ga\"{e}l Varoquaux and Alexandre Gramfort and Vincent Michel and Bertrand Thirion and Olivier Grisel and others},
+  title   = {Scikit-learn: Machine learning in {Python}},
+  journal = {J. Mach. Learn. Res.},
+  volume  = {12},
+  pages   = {2825--2830},
+  year    = {2011}
+}
+
+% --- 2.5 Integrated systems & automated officiating -------------------------
+
+@inproceedings{owens2003hawkeye,
+  author    = {N. Owens and C. Harris and C. Stennett},
+  title     = {Hawk-eye tennis system},
+  booktitle = {Proc. Int. Conf. Visual Information Engineering (VIE)},
+  address   = {Guildford, U.K.},
+  pages     = {182--185},
+  year      = {2003},
+  doi       = {10.1049/cp:20030517}
+}
+
+@article{zhao2023sportssurvey,
+  author  = {Zhonghan Zhao and Wenhao Chai and Shengyu Hao and Wenhao Hu and Guanhong Wang and Shidong Cao and Mingli Song and Jenq-Neng Hwang and Gaoang Wang},
+  title   = {A survey of deep learning in sports applications: Perception, comprehension, and decision},
+  journal = {arXiv preprint arXiv:2307.03353},
+  year    = {2023}
+}
+
+@inproceedings{kingma2015adam,
+  author    = {Diederik P. Kingma and Jimmy Ba},
+  title     = {{Adam}: A method for stochastic optimization},
+  booktitle = {Proc. 3rd Int. Conf. Learning Representations (ICLR)},
+  address   = {San Diego, CA, USA},
+  year      = {2015}
+}
+
+@misc{yastrebksv2023courtdetector,
+  author       = {{yastrebksv}},
+  title        = {{TennisCourtDetector}: Deep learning network for detecting tennis court},
+  howpublished = {Software and dataset},
+  year         = {2023},
+  note         = {\url{https://github.com/yastrebksv/TennisCourtDetector} (accessed Jun. 2026)}
+}

@@ -1,0 +1,297 @@
+\chapter{Background and Related Work}
+\label{ch:related-work}
+
+This chapter reviews the research that supports the three perception
+sub-tasks studied in this thesis, together with the work on integrated
+analysis systems that motivates their composition. The review is organised
+thematically rather than paper by paper. Section~\ref{sec:rw-detection}
+establishes the two dominant models for localising objects in images,
+bounding-box regression and heatmap regression, and explains why the latter
+is better suited to small, fast targets. Section~\ref{sec:rw-ball} surveys
+ball tracking in sports video, with particular attention to the TrackNet
+family that this thesis benchmarks. Section~\ref{sec:rw-court} covers court
+and field registration, spanning keypoint-detection backbones and the
+geometry of homography estimation. Section~\ref{sec:rw-event} reviews event
+detection from trajectories, including temporal convolutional networks and
+gradient-boosted decision trees. Section~\ref{sec:rw-systems} situates the
+work within integrated tennis systems and automated officiating, and
+Section~\ref{sec:rw-gap} synthesises the preceding material into the research
+gap that this thesis addresses.
+
+\section{Object Detection and Small-Object Localisation}
+\label{sec:rw-detection}
+
+\subsection{Bounding-box detection}
+\label{sec:rw-bbox}
+
+Modern object detection was reshaped by the region-based convolutional
+neural network (R-CNN), which combined bottom-up region proposals with
+convolutional features and demonstrated a large accuracy gain over methods
+built on hand-crafted features \cite{girshick2014rcnn}. The original design
+was computationally expensive because it processed every proposal
+independently; Fast R-CNN removed this redundancy by sharing one
+convolutional pass over the whole image and pooling features per region
+\cite{girshick2015fastrcnn}, and Faster R-CNN replaced the external
+proposal step with a learned region proposal network, yielding a near
+end-to-end two-stage detector \cite{ren2017fasterrcnn}. In parallel,
+one-stage detectors removed the proposal stage altogether: the single shot
+multibox detector (SSD) predicted boxes directly from multiple feature maps
+\cite{liu2016ssd}, while the You Only Look Once (YOLO) family framed
+detection as a single regression over a spatial grid
+\cite{redmon2016yolo}. This last design accepted a modest accuracy
+reduction in return for substantially higher throughput. Successive YOLO revisions refined the backbone and the
+multi-scale prediction head \cite{redmon2018yolov3}, and the line has since
+continued through widely used engineering releases that, at the time of
+writing, are documented as software rather than peer-reviewed publications
+\cite{jocher2024yolo11}. Two architectural ideas from this lineage are
+especially relevant to small objects. Feature pyramid networks (FPNs) build a
+top-down feature hierarchy with lateral connections so that small objects
+remain represented at high spatial resolution \cite{lin2017fpn}, and the
+focal loss addresses the extreme foreground-background imbalance that
+otherwise overwhelms dense one-stage training \cite{lin2017focalloss}.
+
+Despite these advances, detecting small objects remains difficult. A recent
+survey identifies the loss of spatial detail through repeated downsampling,
+the scarcity of discriminative appearance cues, and the imbalance between
+tiny foreground regions and large backgrounds as persistent obstacles
+\cite{cheng2023smallobjectsurvey}. A tennis ball is an acute instance of this
+problem. It occupies only a few pixels and is frequently blurred by motion,
+and because its bounding box is barely larger than a point, the
+box-regression objective conveys little information beyond a location.
+
+\subsection{Heatmap regression}
+\label{sec:rw-heatmap}
+
+An alternative to box regression represents a target as a spatial probability
+map, in which a Gaussian peak marks the object centre and the predicted
+coordinate is recovered by locating the maximum response. This formulation
+originated in human pose estimation, where convolutional pose machines
+refined per-joint belief maps through successive stages \cite{wei2016cpm} and
+stacked hourglass networks repeatedly pooled and upsampled features to
+aggregate evidence across scales \cite{newell2016hourglass}. The idea was
+later generalised to object detection by representing each object as a single
+centre point in a heatmap, which removed the need for anchor boxes and
+non-maximum suppression \cite{zhou2019centernet}. Heatmap regression is
+attractive for small, fast targets for several reasons. It supplies dense
+per-pixel supervision, and it localises a target sub-pixel through the shape
+of the response rather than through a discrete box. It also accommodates the
+absence of a target naturally, as a map with no significant peak. These
+properties make it the dominant formulation for both the ball-tracking and
+court-keypoint sub-tasks studied in this thesis, and they motivate
+comparing heatmap-based trackers with a single bounding-box detector when
+those sub-tasks are taken up in later chapters.
+
+\section{Ball Tracking in Sports Video}
+\label{sec:rw-ball}
+
+\subsection{Tracking by detection}
+\label{sec:rw-tbd}
+
+A common strategy for following an object through a video is tracking by
+detection, in which a per-frame detector is coupled with a temporal data
+association step. Simple online and realtime tracking (SORT) associates
+detections across frames using a Kalman-filter motion model and the
+Hungarian assignment algorithm, achieving high speed with bounding-box
+overlap as the sole association cue \cite{bewley2016sort}, and DeepSORT
+augments this with a learned appearance descriptor to reduce identity switches
+through occlusion \cite{wojke2017deepsort}. These methods are effective for
+pedestrians and vehicles, but they rest on assumptions that a tennis ball
+violates: the ball has almost no distinctive appearance to embed, it moves
+fast enough to blur or skip across the frame, and it is regularly occluded by
+players, the net, and court lines. Single-frame detection followed by
+geometric association is therefore fragile in this setting, which has
+motivated trackers that reason over several frames jointly.
+
+\subsection{The TrackNet family}
+\label{sec:rw-tracknet}
+
+TrackNet introduced a heatmap-based, multi-frame approach designed
+specifically for small and fast sports objects \cite{huang2019tracknet}.
+Its encoder-decoder network ingests three consecutive frames, stacked into a
+nine-channel input, and outputs a Gaussian heatmap locating the ball, so that
+motion across the input frames provides the temporal cue absent from a single
+image. This original design follows a multiple-in single-out pattern, in which
+several input frames yield one output heatmap. TrackNetV2 reorganised the
+network into a multiple-in multiple-out architecture that predicts a heatmap
+for every input frame in one pass, reducing redundant computation and
+improving throughput while retaining accuracy on shuttlecock data
+\cite{sun2020tracknetv2}. TrackNetV3 added two refinement components on top of
+this backbone: an auxiliary background-aware module to improve robustness under
+visual interference, and an inpainting-based trajectory-rectification module
+that repairs missed detections by reasoning over the predicted path
+\cite{chen2023tracknetv3}. TrackNetV4 introduced a lightweight motion-attention
+mechanism, in which inter-frame difference maps are fused with the backbone
+features so that the network explicitly attends to moving-ball regions, with
+reported gains under occlusion and low visibility \cite{raj2025tracknetv4}.
+The lineage continues to be extended through further variants proposed as
+preprints \cite{tang2025tracknetv5}, but this thesis treats the published
+members of the family as its primary reference points.
+
+Beyond the TrackNet line, related work has tackled ball and event analysis in
+adjacent racket and table sports. TTNet performs joint ball detection, semantic
+segmentation, and temporal event spotting for table tennis within a single
+multi-task network \cite{voeikov2020ttnet}. This shows that detection and
+event recognition can share a representation. Patch-wise convolutional
+classifiers have also been applied to tennis ball detection in broadcast video,
+linking local detections into trajectories \cite{reno2018cnntennis}. Taken
+together, this literature establishes multi-frame heatmap regression as the
+prevailing paradigm for localising a small, fast ball, and frames the
+comparison undertaken in Chapter~\ref{ch:ball} between successive members of
+the TrackNet family and a representative single-frame detector.
+
+\section{Court Keypoint Detection and Geometric Registration}
+\label{sec:rw-court}
+
+\subsection{Keypoint detection backbones}
+\label{sec:rw-keypoint}
+
+Recovering the geometry of the playing surface begins with localising a fixed
+set of court landmarks, a task closely related to human-pose keypoint
+estimation. The heatmap-regression backbones reviewed in
+Section~\ref{sec:rw-heatmap} transfer directly to this problem. A widely used
+baseline appends a few deconvolutional layers to a deep residual network
+(ResNet) backbone \cite{he2016resnet} to produce keypoint heatmaps from
+high-level features, a design valued for its simplicity \cite{xiao2018simplebaselines}.
+In contrast, the high-resolution network (HRNet) maintains high-resolution
+representations throughout the network and fuses parallel multi-resolution
+streams, which improves the spatial precision of the predicted keypoints
+\cite{sun2019hrnet}. Because court detection must often run within a larger
+real-time pipeline, efficient backbones are also of interest: the MobileNet
+family uses inverted-residual blocks with linear bottlenecks \cite{sandler2018mobilenetv2}
+and architecture search with squeeze-and-excitation refinements
+\cite{howard2019mobilenetv3} to deliver competitive accuracy at a small
+fraction of the parameter count. Whether such lightweight backbones suffice for
+accurate court-keypoint localisation is one of the open questions this thesis
+sets out to answer.
+
+\subsection{Sports-field registration and homography}
+\label{sec:rw-homography}
+
+Localised keypoints are useful for analysis only once they are related to a
+metric model of the court. For a planar surface viewed by a single camera,
+this relationship is a homography, a projective transformation between the
+image plane and the court plane whose theory is set out in the standard
+reference on multiple-view geometry \cite{hartley2004mvg}. Estimating the
+homography from automatically detected keypoints requires robustness to
+mislocalised points, which is classically provided by random sample consensus
+(RANSAC), an iterative scheme that fits a model to randomly sampled minimal
+subsets and retains the hypothesis with the largest consensus set
+\cite{fischler1981ransac}. Learned variants such as differentiable RANSAC make
+the hypothesis-selection step trainable end to end \cite{brachmann2017dsac}.
+Within sports specifically, field registration has been framed as inference in
+a deep structured model that combines semantic cues with geometric priors
+\cite{homayounfar2017sportsfield}, as iterative optimisation through a learned
+error function \cite{jiang2020sportsfield}, and as dense keypoint detection on
+a regular grid coupled with feature-warp refinement to remain robust where
+distinctive corners are absent \cite{nie2021sportsfield}. The court pipeline in
+Chapter~\ref{ch:court} follows the detect-then-fit pattern common to this
+literature: predict court keypoints with a heatmap backbone, then fit a
+homography with a robust estimator to map the image into court-metric
+coordinates.
+
+\section{Event Detection from Trajectories}
+\label{sec:rw-event}
+
+\subsection{Temporal modelling of sequences}
+\label{sec:rw-temporal}
+
+Identifying the discrete frames at which a bounce occurs is a temporal
+pattern-recognition problem over a one-dimensional signal derived from the
+ball trajectory. Although recurrent networks were long the default for
+sequence modelling, convolutional alternatives have proved competitive.
+Dilated causal convolutions, popularised for raw-audio generation by WaveNet,
+expand the receptive field exponentially with depth without increasing the
+parameter count \cite{vandenoord2016wavenet}. Long temporal contexts can
+therefore be captured efficiently. Temporal convolutional networks (TCNs) build on
+this principle for discriminative tasks: they have been applied to fine-grained
+action segmentation and detection in video \cite{lea2017tcn}, and a systematic
+comparison found that generic TCNs match or exceed recurrent networks across a
+range of sequence-modelling benchmarks while being simpler to train
+\cite{bai2018tcn}. These properties make a dilated TCN a natural candidate for
+classifying windows of trajectory features into bounce events.
+
+\subsection{Gradient-boosted decision trees}
+\label{sec:rw-gbm}
+
+A problem is naturally expressed through engineered per-frame features,
+gradient-boosted decision trees offer a strong and data-efficient alternative
+to deep models. Gradient boosting fits an additive ensemble of trees by
+successively approximating the negative gradient of a loss function
+\cite{friedman2001gbm}. Modern implementations differ mainly in how they
+control overfitting and scale to large data: XGBoost introduced a regularised
+objective and a scalable system design \cite{chen2016xgboost}, LightGBM
+accelerated training through histogram-based splits and feature bundling
+\cite{ke2017lightgbm}, and CatBoost reduced the prediction bias of ordinary
+boosting through ordered boosting \cite{prokhorenkova2018catboost}.
+Histogram-based gradient boosting is also available as a standard component of
+general machine-learning toolkits \cite{pedregosa2011sklearn}. Such models
+operate directly on the kinematic and shape features computed from a trajectory
+and require comparatively little tuning, which makes a gradient-boosted
+classifier a natural baseline among the bounce detectors this thesis compares.
+
+\subsection{Bounce and hit detection in tennis}
+\label{sec:rw-bounce}
+
+Compared with ball localisation, the detection of bounce and hit events from a
+tennis trajectory has received comparatively little dedicated attention, and
+existing approaches range from hand-built kinematic heuristics that look for
+characteristic reversals in vertical motion to learned classifiers over
+trajectory features. Multi-task systems such as TTNet show that event spotting
+can be learned jointly with detection \cite{voeikov2020ttnet}, but such work
+generally targets a different sport and a different event vocabulary. The
+relative scarcity of controlled comparisons among heuristic, tree-based, and
+temporal-convolutional detectors for tennis bounces, evaluated on a common
+trajectory under a common tolerance, is one of the gaps that
+Chapter~\ref{ch:bounce} addresses.
+
+\section{Integrated Tennis Systems and Automated Officiating}
+\label{sec:rw-systems}
+
+The most prominent application of tennis computer vision is automated
+officiating. The Hawk-Eye system reconstructs the three-dimensional ball
+trajectory from several synchronised, calibrated cameras and estimates the
+bounce position to adjudicate line calls \cite{owens2003hawkeye}. Its
+commercial success demonstrates the value of vision-based measurement, yet
+scholarly analysis has cautioned that the confident, deterministic
+visualisations such systems present can mask the measurement uncertainty
+inherent in any reconstruction of ball position \cite{collins2008hawkeye}.
+Equally important for the present work, these systems depend on calibrated
+multi-camera installations that are unavailable outside elite venues, which
+motivates accessible, vision-only analysis of ordinary monocular video.
+
+More broadly, surveys of computer vision for sport document a wide range of
+perception and analysis tasks, from player and ball tracking to tactical
+understanding, and note that components are typically developed and reported in
+isolation \cite{thomas2017cvsports, zhao2023sportssurvey}. The literature
+contains strong individual models for ball tracking, court registration, and
+event detection, but comparatively few studies compose these components into a
+single monocular pipeline whose end-to-end behaviour and deployability can be
+examined, which is precisely the integration studied in
+Chapter~\ref{ch:integrated}.
+
+\section{Research Gap and Positioning}
+\label{sec:rw-gap}
+
+Three observations emerge from the preceding review. First, within each of the
+three perception sub-tasks, a wide range of architectures has been proposed,
+but they are commonly reported on heterogeneous datasets and private
+train/test splits, and most studies evaluate a single proposed model rather
+than placing competing designs on a common footing. This makes it difficult to
+draw like-for-like conclusions about the accuracy, speed, and robustness
+trade-offs between architectures within a sub-task. Second, the heatmap
+formulation that recurs across ball tracking and court detection, and the
+temporal and tree-based models that recur across event detection, are seldom
+compared head to head under a fixed protocol on the same data. Third, and to
+the best of the author's knowledge, comparatively few works compose the
+resulting components into a single end-to-end monocular pipeline whose
+practical deployability, including model export and per-frame latency, is
+assessed, and fewer still close the loop to a geometric line-call decision from
+ordinary single-camera video.
+
+This thesis is positioned against these gaps. It conducts a controlled,
+within-task comparison for each of the three sub-tasks under a deterministic
+evaluation protocol, and it composes the strongest model from each into one
+reproducible pipeline that maps detected bounces through an estimated
+homography to a qualitative in/out line call. The protocol, datasets, and
+shared metric vocabulary that make these comparisons reproducible are described
+next, in Chapter~\ref{ch:methodology}.

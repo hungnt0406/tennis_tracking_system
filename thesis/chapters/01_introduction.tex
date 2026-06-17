@@ -1,0 +1,221 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+\section{Background and Motivation}
+\label{sec:intro-background}
+
+Motion in modern sport is fast and highly variable, which makes consistent
+manual measurement difficult. As recording has spread from broadcast crews to
+ordinary phones and consumer cameras, computer vision (CV) has become a
+practical tool for sports analytics, applied to problems from player and ball
+tracking through to tactical and performance analysis
+\cite{thomas2017cvsports}. Tennis is a representative and demanding case:
+matches are decided by the trajectory of a small, rapidly moving ball over a
+precisely measured court, so an accurate spatial and temporal understanding of
+both the ball and the playing surface is fundamental to almost any downstream
+analysis.
+
+The commercial prominence of vision-based officiating illustrates both the
+value and the difficulty of this problem. Systems such as Hawk-Eye are now
+embedded in professional tennis for automated line-calling, yet scholarly
+analysis has cautioned that their confident, deterministic visualisations can
+obscure the measurement uncertainty inherent in any reconstruction of ball
+position \cite{collins2008hawkeye}. Such systems also depend on calibrated
+multi-camera installations that are unavailable outside elite venues. This
+motivates a complementary line of work: vision-only analysis of ordinary
+monocular video that is reproducible, inexpensive, and accessible for coaching,
+amateur play, and research.
+
+Automated tennis analysis from a single video stream rests on three perception
+sub-problems. The first is ball tracking: localising the ball in every
+frame. This is a canonical small-object problem, because the ball occupies only
+a handful of pixels, moves quickly enough to blur or leave afterimages, and is
+frequently occluded by players, the net, or court markings, so that
+single-frame appearance is often insufficient. Heatmap-based temporal models
+such as TrackNet were introduced precisely to exploit motion cues across
+consecutive frames in this setting \cite{huang2019tracknet}, in contrast to
+single-frame object detectors of the YOLO family that localise objects through
+bounding-box regression \cite{redmon2016yolo}. The second sub-problem is
+court keypoint detection and registration: recovering the geometric
+mapping between image pixels and real-world court coordinates, typically by
+detecting a fixed set of court landmarks and fitting a homography with a robust
+estimator such as random sample consensus (RANSAC) \cite{fischler1981ransac}.
+Keypoint localisation has been tackled both with high-capacity backbones such
+as deep residual networks \cite{he2016resnet} and high-resolution pose networks
+\cite{sun2019hrnet}, and with efficient mobile architectures designed for
+constrained hardware \cite{howard2019mobilenetv3}. The third sub-problem is
+bounce-event detection: identifying the discrete frames at which the ball
+contacts the court, recovered from a noisy and intermittently missing
+trajectory. This is a temporal pattern-recognition task that can be addressed
+with hand-crafted kinematic heuristics, gradient-boosted decision trees
+\cite{chen2016xgboost}, or temporal convolutional networks (TCNs)
+\cite{bai2018tcn}.
+
+A wide range of models has been proposed for each of these sub-problems
+individually. However, they are commonly reported on heterogeneous datasets and
+private train/test splits, and most studies evaluate a single proposed model
+rather than placing competing designs on a common footing. As a result, it is
+difficult to draw like-for-like conclusions about the accuracy, speed, and
+robustness trade-offs between architectures within a sub-task, and, to
+the best of the author's knowledge, comparatively few works compose the
+resulting components into a single, end-to-end pipeline whose practical
+deployability can be assessed. The present thesis is motivated by both gaps: the scarcity of controlled
+within-task comparison, and the still rarer attempt to assemble the resulting
+components into one reproducible pipeline.
+
+\section{Problem Statement}
+\label{sec:intro-problem}
+
+This thesis studies the three perception sub-tasks of monocular tennis video
+analysis (ball tracking, court keypoint detection with homography, and
+bounce-event detection), together with the engineering problem of integrating
+them into a single pipeline. Each sub-task is framed as a controlled model
+comparison conducted under a shared, deterministic evaluation protocol.
+
+The sub-tasks are formulated as follows. Ball tracking is the per-frame
+estimation of the ball's image position, with an explicit ``not visible'' state
+for frames in which the ball is absent or undetectable. Court detection is the
+per-frame localisation of a fixed set of fourteen predefined court keypoints,
+followed by estimation of a homography that maps the image onto a canonical
+court template expressed in metric units. Bounce detection is the
+classification of which frames correspond to a ball bounce, distinguished both
+from racket-hit frames and from the much larger set of ordinary in-flight
+frames.
+
+A central methodological point is that this work draws on two distinct
+datasets. Ball tracking and bounce detection share the publicly available
+TrackNet tennis dataset, in which each frame is annotated with ball visibility,
+image coordinates, and a status label. Court keypoint detection uses a separate
+court-keypoint dataset with its own annotation schema and image resolution.
+Because the two datasets differ in content, resolution, and split policy,
+accuracy figures are comparable only within a sub-task and never across
+sub-tasks; this constraint is stated explicitly and respected throughout the
+thesis. The integration sub-problem is distinct from the three perception
+problems: composing the strongest model from each sub-task into one system that
+ingests raw video and emits a ball trajectory, court geometry, and bounce events
+raises questions of model coupling, export and packaging, and end-to-end
+throughput that do not arise when models are evaluated in isolation. The
+purpose of this integrated system is to support automated line calling: by
+composing the court geometry with the detected bounce events, the pipeline
+determines, for each bounce, whether the ball landed inside or outside the
+court boundary. This in/out decision is obtained geometrically, by projecting
+the bounce position through the estimated homography into court-metric
+coordinates and testing for containment within the court-boundary polygon; it
+is qualitative, because no ground-truth line-call labels are available in
+either dataset.
+
+\section{Objectives and Research Questions}
+\label{sec:intro-objectives}
+
+The overall objective of this thesis is to design, implement, and rigorously
+compare representative models for each sub-task on a common protocol, and to
+demonstrate that the strongest models can be integrated into a deployable
+pipeline that supports automated line calling. Concretely, the work aims to:
+(i) construct a deterministic, reproducible benchmark for each sub-task;
+(ii) train and evaluate competing models under a shared metric suite;
+(iii) integrate the best-performing models into one end-to-end system that
+determines, for each detected bounce, whether the ball landed inside or outside
+the court (an automated in/out line call); and (iv) release the artifacts
+required to reproduce the results. This objective is articulated through four
+research questions (RQs).
+
+\begin{description}[leftmargin=2.2em,style=nextline]
+  \item[RQ1 (Ball tracking).] Among the TrackNet family (V1--V5) and a
+    single-frame detector (YOLO11m), which most accurately localises a
+    small, fast, and frequently occluded tennis ball, and what does the
+    architectural progression buy in accuracy relative to inference speed?
+  \item[RQ2 (Court detection).] Which backbone offers the best accuracy/latency
+    trade-off for fourteen-keypoint court detection among a heatmap
+    convolutional neural network (CNN), a deep residual network, a
+    high-resolution network, and a lightweight mobile network, and is the
+    resulting keypoint accuracy sufficient to drive a reliable homography to
+    court-metric space?
+  \item[RQ3 (Bounce detection).] For bounce-event timing from a noisy ball
+    trajectory, how do a hand-built heuristic, a gradient-boosted per-frame
+    classifier, and a temporal convolutional network compare in accuracy, and
+    what does each cost in engineering effort?
+  \item[RQ4 (Integration).] Can the strongest model from each sub-task be
+    composed into a single pipeline that ingests raw video and outputs a
+    tracked ball, court geometry, bounce events, and, as its culminating
+    output, a per-bounce in/out line-call decision obtained by projecting each
+    bounce through the court homography, demonstrating the line-calling
+    capability as a qualitative geometric result rather than a validated
+    accuracy figure, and what throughput and deployment trade-offs (model
+    export, per-frame latency, and processing bottlenecks) does such a
+    composition incur?
+\end{description}
+
+\section{Contributions}
+\label{sec:intro-contributions}
+
+In addressing these questions, the thesis makes the following contributions.
+
+\begin{enumerate}[leftmargin=2.2em]
+  \item A deterministic, reproducible benchmark protocol for each
+    sub-task, comprising a fixed data-split contract and a defined metric suite
+    per task (a per-clip split of the TrackNet dataset for ball tracking and
+    bounce detection, and a deterministic hash-based split of the court-keypoint
+    dataset for court detection), enabling controlled, like-for-like comparison
+    within each sub-task.
+  \item Building on that protocol, a systematic comparison of six
+    ball-tracking, four court-detection, and three bounce-detection models, each
+    evaluated on the dataset appropriate to its task, in contrast to the common
+    practice of reporting only a single proposed model.
+  \item An integrated, packaged pipeline that wires the strongest
+    model from each sub-task into one system, with neural-network export to the
+    Open Neural Network Exchange (ONNX) format and an interactive demonstration
+    interface, illustrating practical deployability. By combining the estimated
+    court homography with the detected bounces, the pipeline further produces an
+    automated in/out line-call decision for each bounce, demonstrating the
+    line-calling application that names the thesis.
+  \item Finally, the reproducibility artifacts themselves (split
+    manifests, training configurations, metric outputs, and visualisations),
+    collected in a single repository.
+\end{enumerate}
+
+These contributions are framed as a controlled comparative study on two
+public-style datasets rather than as a claim of state-of-the-art performance on
+a competition benchmark; the scope and its limitations are stated in
+Section~\ref{sec:intro-scope} and revisited in Chapter~\ref{ch:discussion}.
+
+\section{Scope and Limitations}
+\label{sec:intro-scope}
+
+The scope of this thesis is deliberately bounded. The study concerns
+offline analysis of recorded monocular tennis video; it does not target
+live, real-time operation, and the measured per-frame latency of the integrated
+pipeline on commodity CPU hardware does not support a real-time claim
+(Chapter~\ref{ch:integrated}). The evaluation rests on two datasets (one for
+ball and bounce, one for court), so the conclusions pertain to the conditions
+those datasets represent and may not transfer without adaptation to markedly
+different camera angles, court surfaces, or broadcast styles. The
+bounce-detection test set in particular contains relatively few bounce events,
+so the corresponding figures should be read with that sample size in mind. The
+in/out line-call output is likewise a qualitative geometric demonstration: the
+available datasets provide no ground-truth line-call labels, and the
+reprojection and bounce-localisation uncertainties are not propagated into a
+calibrated confidence, so the in/out determination is not quantitatively
+validated and the system is not presented as a calibrated, officiating-grade
+line-calling instrument, consistent with the cautionary framing of
+Section~\ref{sec:intro-background} \cite{collins2008hawkeye}.
+Finally, the system addresses ball, court, and bounce perception only: it does
+not perform player tracking, pose estimation, shot classification, multi-camera
+fusion, or three-dimensional trajectory reconstruction. These omissions define directions for future work (Chapter~\ref{ch:conclusion}).
+
+\section{Thesis Organisation}
+\label{sec:intro-organisation}
+
+The remainder of this thesis is organised as follows.
+Chapter~\ref{ch:related-work} reviews background and related work across
+small-object detection, ball tracking, court registration, and trajectory-based
+event detection, and situates the research gap.
+Chapter~\ref{ch:methodology} describes the two datasets, the split policies, and
+the shared metric vocabulary.
+Chapter~\ref{ch:ball} presents the ball-tracking comparison;
+Chapter~\ref{ch:court} the court keypoint detection and homography pipeline; and
+Chapter~\ref{ch:bounce} the bounce-event detection comparison.
+Chapter~\ref{ch:integrated} describes the integrated system, its model-selection
+rationale, and its deployment characteristics.
+Chapter~\ref{ch:discussion} discusses cross-cutting findings, threats to
+validity, and reproducibility, and Chapter~\ref{ch:conclusion} concludes by
+answering the research questions and outlining future work.

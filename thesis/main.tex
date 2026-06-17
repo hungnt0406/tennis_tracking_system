@@ -1,0 +1,138 @@
+\documentclass[a4paper,12pt]{report}
+
+% ========================
+% Packages (Đã dọn dẹp trùng lặp)
+% ========================
+\usepackage[margin=1in]{geometry}
+\usepackage{tikz}
+\usetikzlibrary{calc, arrows.meta, positioning, shapes.geometric, shadows}
+\usepackage{graphicx}
+\usepackage{lmodern}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{makecell}
+\usepackage{float}
+\usepackage{tocloft}
+\usepackage{cite}
+\usepackage[colorlinks=true, linkcolor=black, citecolor=black, urlcolor=black]{hyperref}
+\usepackage{colortbl}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{etoolbox}
+
+% TikZ Styles
+\tikzset{
+    block/.style={
+        rectangle, draw=blue!70, fill=blue!5, text width=2.2cm, 
+        align=center, rounded corners, minimum height=1.2cm, 
+        thick, drop shadow, font=\small\sffamily\bfseries
+    },
+    arrow/.style={-{Stealth[scale=1.2]}, line width=1pt, gray!80}
+}
+
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+% The report class normally starts every chapter on a new page. Replace that
+% forced page break with a paragraph break so chapters continue on the same
+% page but their headings still start on a new line.
+\makeatletter
+\patchcmd{\chapter}{\if@openright\cleardoublepage\else\clearpage\fi}{\par}{}{}
+\makeatother
+
+% Header / Footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[R]{\thepage}
+
+% Code style
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    numbers=left,
+    numbersep=5pt,
+    showstringspaces=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+% ========================
+% TITLE PAGE
+% ========================
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture, overlay]
+    \draw[line width=2pt]
+        ($(current page.south west)+(0.5in,0.5in)$)
+        rectangle
+        ($(current page.north east)-(0.5in,0.5in)$);
+\end{tikzpicture}
+
+\vspace*{0.5cm}
+\begin{center}
+    {\Large \textbf{UNIVERSITY OF SCIENCE AND TECHNOLOGY OF HANOI}}\\[0.3cm]
+    {\large \textbf{VIETNAM FRANCE UNIVERSITY}}\\[1cm]
+
+    % Đổi tên file ảnh thành logo_usth.png để tránh lỗi
+    \includegraphics[width=0.45\textwidth]{img/usth.png}\\[0.5cm]
+
+    \rule{\textwidth}{1.2pt}\\[0.5cm]
+    {\LARGE \textbf{BACHELOR THESIS}}\\[0.2cm]
+    \rule{\textwidth}{1.2pt}\\[1.5cm]
+
+    {\Huge \textbf{ Deep learning-based Automated Tennis Tracking System for Line Calling}}\\[1.5cm]
+\end{center}
+
+\vspace{1cm}
+\begin{center}
+    \begin{tabular}{ll}
+        \textbf{Student:} & \textbf{Tran Ngoc Hung} \\
+        \textbf{Student ID:} & 23BI14181 \\
+        \textbf{Major:} & Data Science \\
+        \textbf{Intake:} & 2023--2026 \\
+        & \\
+        \textbf{Supervisor:} & \textbf{Assoc. Prof. Nguyen Duc Dung} \\
+    \end{tabular}
+\end{center}
+
+\vfill
+\begin{center}
+    {\large \textbf{HANOI, 2026}}
+\end{center}
+\clearpage
+
+% ========================
+% BODY
+% ========================
+\input{chapters/01_introduction}
+\input{chapters/02_related_work}
+\input{chapters/03_methodology}
+\input{chapters/04_ball_tracking}
+\input{chapters/05_court_detection}
+\input{chapters/06_bounce_detection}
+
+% ========================
+% REFERENCES
+% ========================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
