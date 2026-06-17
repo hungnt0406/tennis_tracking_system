@@ -46,9 +46,10 @@ as deep residual networks \cite{he2016resnet} and high-resolution pose networks
 constrained hardware \cite{howard2019mobilenetv3}. The third sub-problem is
 bounce-event detection: identifying the discrete frames at which the ball
 contacts the court, recovered from a noisy and intermittently missing
-trajectory. This is a temporal pattern-recognition task that can be addressed
-with hand-crafted kinematic heuristics, gradient-boosted decision trees
-\cite{chen2016xgboost}, or temporal convolutional networks (TCNs)
+trajectory. Because a racket hit produces the same trajectory reversal as a
+bounce, a simple kinematic rule cannot separate the two, so this is posed as a
+learning problem over the trajectory and addressed with gradient-boosted decision
+trees \cite{chen2016xgboost} and temporal convolutional networks (TCNs)
 \cite{bai2018tcn}.
 
 A wide range of models has been proposed for each of these sub-problems
@@ -131,9 +132,10 @@ research questions (RQs).
     resulting keypoint accuracy sufficient to drive a reliable homography to
     court-metric space?
   \item[RQ3 (Bounce detection).] For bounce-event timing from a noisy ball
-    trajectory, how do a hand-built heuristic, a gradient-boosted per-frame
-    classifier, and a temporal convolutional network compare in accuracy, and
-    what does each cost in engineering effort?
+    trajectory, in which a racket hit produces the same kinematic reversal as a
+    bounce, how do a gradient-boosted per-frame classifier and a temporal
+    convolutional network compare in accuracy, and what does each cost in
+    engineering effort?
   \item[RQ4 (Integration).] Can the strongest model from each sub-task be
     composed into a single pipeline that ingests raw video and outputs a
     tracked ball, court geometry, bounce events, and, as its culminating

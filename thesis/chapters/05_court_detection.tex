@@ -219,15 +219,14 @@ shape the results.
     $90 \times 160$ grid. Parameter counts are computed from the implementations
     used here.}
   \label{tab:court-models}
-  \begin{tabular}{@{}l p{3.5cm} p{3.2cm} c c c r@{}}
+  \begin{tabular}{@{}l p{3.5cm} p{3.2cm} r@{}}
     \toprule
-    Model & Backbone & Decoder / head & \makecell{Out.\\stride} & \makecell{Gauss.\\radius}
-          & \makecell{ImageNet\\norm.} & \makecell[r]{Params\\(M)} \\
+    Model & Backbone & Decoder / head & \makecell[r]{Params\\(M)} \\
     \midrule
-    TrackNet-court & VGG-style encoder-decoder(from scratch) & transposed-conv decoder with skips & 1 & 15 & no  & 20.8 \\
-    ResNet50       & ResNet-50(ImageNet)                      & three transposed-conv blocks       & 4 & 8  & yes & 34.0 \\
-    HRNet          & HRNet-W32(timm features)                 & stride-4 feature tap + $1\times1$  & 4 & 8  & yes & 30.9 \\
-    MobileNetV3    & MobileNetV3-Small(ImageNet)              & U-Net decoder                       & 1 & 15 & yes & 1.28 \\
+    TrackNet-court & VGG-style encoder-decoder(from scratch) & transposed-conv decoder with skips & 20.8 \\
+    ResNet50       & ResNet-50(ImageNet)                      & three transposed-conv blocks       & 34.0 \\
+    HRNet          & HRNet-W32(timm features)                 & stride-4 feature tap + $1\times1$  & 30.9 \\
+    MobileNetV3    & MobileNetV3-Small(ImageNet)              & U-Net decoder                       & 1.28 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -406,17 +405,16 @@ down by keypoint.
 \end{figure}
 
 The headline result is that MobileNetV3, by far the smallest of the four models,
-is also the most accurate on every metric but one. It attains the best accuracy
+is also the most accurate overall. It attains the best accuracy
 at all four tolerances, including the most demanding five-pixel and seven-pixel
-thresholds (0.974 and 0.992), the lowest mean keypoint error (2.46 pixels), the
-joint-best homography success rate (0.999), and the highest throughput in the
-comparison, while carrying 1.28 million parameters against the twenty to
+thresholds (0.974 and 0.992), the lowest mean keypoint error (2.46 pixels), and the
+joint-best homography success rate (0.999), while carrying 1.28 million parameters against the twenty to
 thirty-four million of the others. Its median keypoint error is 1.45 pixels,
-which shows that the bulk of its detections are localised to within a pixel or
+which shows that most of its detections are localised to within a pixel or
 two and that the mean is inflated by a small tail of harder frames; the same
 holds for TrackNet-court, whose median error is 1.44 pixels. The single metric on
 which MobileNetV3 does not lead is the mean reprojection error, where
-TrackNet-court is marginally better at 7.47 centimetres against 7.67, a
+TrackNet-court is slightly better at 7.47 centimetres against 7.67, a
 difference too small to separate the two models in practice and far smaller than
 the gap to the remaining two.
 
@@ -476,8 +474,7 @@ largest backbone but by the smallest, a 1.28-million-parameter MobileNetV3-Small
 with a full-resolution decoder, which is the most accurate model at every
 tolerance and the fastest in the comparison. Its mean court-plane reprojection
 error of 7.67 centimetres, obtained on essentially every test frame, is small
-relative to the scale of the court and the margins involved in a line call, so it
-is reliable enough to drive the homography that the integrated system of
+relative to the scale of the court, so it is reliable enough to drive the homography that the integrated system of
 Chapter~\ref{ch:integrated} depends on, and it is the model selected for that
 system.
 
@@ -494,71 +491,17 @@ original frame, to about two pixels in the space where accuracy is measured. The
 two models that predict at output stride four, ResNet50 and HRNet, emit a
 $90 \times 160$ heatmap, so that one cell corresponds to four input pixels and to
 about eight pixels in the original frame. The peak of a coarse heatmap can
-therefore be no more precise than its cell, and although the sub-pixel refinement
-of Section~\ref{sec:court-models} interpolates within a cell it cannot escape the
-underlying lattice. A five-pixel tolerance is smaller than the eight-pixel
+therefore be no more precise than its cell. A five-pixel tolerance is smaller than the eight-pixel
 quantisation of the stride-four models, so even a perfectly centred prediction
 frequently falls outside it, which is why ResNet50 and HRNet score so low at five
-and seven pixels; once the tolerance widens past the quantisation step, at ten and
+and seven pixels; once the tolerance widens, at ten and
 twenty-five pixels, a correctly identified cell almost always falls within
 tolerance and the two models recover. The stride-one models, with a two-pixel
 quantisation, sit comfortably inside even the five-pixel tolerance, which is why
-they saturate the accuracy metric. The mean keypoint errors tell the same story
+they good enough to meet the accuracy this task requires. The mean keypoint errors tell the same story
 in pixel terms, around six and eight pixels for the stride-four models against
 two and three for the stride-one models.
 
-This explanation also resolves an apparent contradiction with the validation
-figures used during training. The metric monitored for early stopping and
-checkpoint selection was the accuracy at seven pixels measured in the resized
-$360 \times 640$ input space, and on that metric all four models reach
-comparable, high values, between 0.99 and 0.997. The seven-pixel tolerance in the
-input space corresponds to a fourteen-pixel tolerance in the original frame, which
-is wide enough to hide the quantisation penalty of the stride-four models;
-measuring the test accuracy in the original space at seven pixels, the stricter
-and more honest setting, is what exposes it. The lesson is methodological: the
-space in which a pixel tolerance is applied must be stated alongside the number,
-because the same nominal tolerance describes a different physical accuracy in the
-input space and in the original space, and the input-space monitoring metric
-flattered the coarse models.
-
-It follows that the comparison is not a refutation of the larger backbones as
-feature extractors but of the particular stride-four heads used here, and in the
-case of HRNet of a head that does not exploit the backbone's defining
-high-resolution branch. A fairer test of ResNet50 and HRNet would attach a decoder
-that restores the full resolution, as the U-Net decoder does for MobileNetV3, and
-their accuracy would be expected to rise accordingly. The practical conclusion for
-this thesis is nonetheless robust: a lightweight, full-resolution model already
-saturates the accuracy this task requires while costing a fraction of the
-parameters and running fastest, so there is no accuracy argument for paying the
-size and latency of the heavier models, and the small-backbone choice is the right
-one for a deployable system.
-
-Two further points qualify the results. First, the mean reprojection error in
-centimetres should be read as an indicative geometric figure rather than an exact
-one, because of how it is computed: ground-truth keypoints are projected through
-the homography that was fitted to the predicted keypoints, so the number combines
-the accuracy of the keypoints with the quality of the homography fit in a single
-quantity, and a maximum reprojection error of well over a metre on the worst
-frames, even for the strong models, reflects the occasional frame on which a
-degenerate or poorly conditioned fit projects points far from their true
-positions. The success rate and the mean error together, rather than either
-alone, characterise the registration. Second, the court-centre channel that every
-model emits is supervised during training but is not scored at evaluation, because
-no ground-truth target for it is constructed in the evaluation loop; its accuracy
-is therefore reported as not evaluated, and the channel serves only as an
-auxiliary training signal and as an input to the geometric centre used elsewhere.
-
-A local Hough-line refinement of the detected keypoints, which snaps each
-prediction towards the nearest painted court line, was also explored as an
-optional post-processing step. On the selected model it reduced the accuracy and
-the throughput while changing the reprojection error only marginally, so it offers
-no clear benefit at the operating point reached here and was not adopted for the
-integrated system. Finally, the six excluded test records noted in
-Section~\ref{sec:court-task} are a reminder that public datasets carry annotation
-noise: they were found by a manual audit of the ground truth, and excluding them
-prevents a handful of geometrically impossible annotations from distorting the
-test metrics. Their identifiers are recorded in the project so that the exclusion
-is reproducible.
 
 In summary, the court comparison answers RQ2 by selecting a 1.28-million-parameter
 MobileNetV3-Small model that is the most accurate of the four at every tolerance,
