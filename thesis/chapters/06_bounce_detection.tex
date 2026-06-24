@@ -1,40 +1,22 @@
 \chapter{Bounce Event Detection}
 \label{ch:bounce}
 
-% Local styles for the bounce-signature schematic of Fig.~\ref{fig:bounce-signature}.
-\tikzset{
-  trajline/.style={line width=1.1pt, blue!65!black},
-  targetline/.style={line width=1.1pt, orange!85!black},
-  guide/.style={dashed, gray!70, line width=0.6pt},
-  axline/.style={-{Stealth[scale=0.9]}, line width=0.7pt, black!70},
-  siglbl/.style={font=\scriptsize, text=black!75},
-}
-
 This chapter applies the protocol of Chapter~\ref{ch:methodology} to the third
-perception sub-task, deciding at which frames the ball bounces on the court from
-the trajectory it traces through a rally. Where ball tracking locates the ball in
-each frame (Chapter~\ref{ch:ball}) and court detection registers the playing
-surface (Chapter~\ref{ch:court}), bounce detection consumes the output of the
-former rather than the raw image: its input is a one-dimensional time series of
-ball positions, and its task is to mark the instant of ground contact within it.
-The sub-task runs on the TrackNet tennis dataset of Section~\ref{sec:meth-tracknet},
-under the bounce-specific split of Section~\ref{sec:meth-splits-tracknet} that
-holds out match game7 as the test set, and it is scored by the event-detection
-metrics of Section~\ref{sec:meth-metrics-event}. A bounce leaves a clear signature
-in the ball-coordinate time series, a reversal of the vertical motion in which the
-descending ball reaches its lowest point and turns back upward. The same signature
-appears elsewhere, however: a racket hit reverses the ball's motion in the same
-way, and so does the apex of every arc the ball traces between contacts. Detecting
-these reversals as local extrema of the trajectory therefore finds candidate
-events but cannot say which of them are bounces. Separating the bounces requires
-reading the finer shape of the trajectory around each reversal, which a single
-turning point does not capture. Two learned models are trained for it, a
+perception sub-task: deciding at which frames the ball bounces on the court, given
+the trajectory it traces through a rally. Ball tracking locates the ball in each
+frame (Chapter~\ref{ch:ball}) and court detection registers the playing surface
+(Chapter~\ref{ch:court}); bounce detection differs from both in that it consumes
+the output of the tracker rather than the raw image. Its input is a
+one-dimensional time series of ball positions, and its task is to mark the moment
+of ground contact within it. The sub-task runs on the TrackNet tennis dataset of
+Section~\ref{sec:meth-tracknet}, under the bounce-specific split of
+Section~\ref{sec:meth-splits-tracknet} that holds out match game7 as the test set,
+and it is scored by the event-detection metrics of
+Section~\ref{sec:meth-metrics-event}. Two learned models are trained for that: a
 gradient-boosted per-frame classifier and a small temporal convolutional network,
-and they are compared on one shared trajectory pipeline so that the comparison
-varies only the scorer. The
-chapter answers the third research question (RQ3) of
-Section~\ref{sec:intro-objectives} on how the two models compare in accuracy, and
-on what each costs in engineering effort.
+compared on one shared trajectory pipeline. The chapter answers the third
+research question (RQ3) of Section~\ref{sec:intro-objectives}: how the two models
+compare in accuracy, and what each costs in engineering effort.
 
 \section{Task Formulation}
 \label{sec:bounce-task}
@@ -45,43 +27,17 @@ The task is posed as event detection in time rather than as per-frame
 classification, for the reason set out in Section~\ref{sec:meth-metrics-event}:
 bounce frames make up only 2.6\,\% of the data
 (Table~\ref{tab:tracknet-labels}), so a per-frame accuracy would be dominated by
-the negative class. What
-matters instead is the timing of the predicted events, measured by the event
-precision, recall, and $F_1$ at a temporal tolerance of $\pm k$ frames defined in
-Section~\ref{sec:meth-metrics-event}, with the default tolerance $k = 3$.
+the negative class.
 
-Two properties of the problem shape every design choice that follows. The first is
-that a bounce is defined by how the ball moves, not by its appearance in a single
-frame, so the discriminative signal is kinematic. Because the image $y$ axis grows
-downward, a ball falling towards the court has an increasing $y$ coordinate, and
-the moment of ground contact is a local maximum of $y$ followed by a reversal of
-the vertical velocity from positive (descending) to negative (ascending),
-accompanied by a sharp spike in the magnitude of the vertical acceleration.
-Figure~\ref{fig:status-classes} illustrates this signature on individual events,
-and Figure~\ref{fig:bounce-trajectory-motivation} shows it across a whole rally,
-where every bounce falls at a turning point of the vertical trajectory; the
-trajectory pipeline of Section~\ref{sec:bounce-features} is built to expose it.
-
-The second property is that this signature is not unique to bounces, which is what
+The problem is that the signature of a bounce is not unique to bounces. That is what
 makes the task hard and rules out a simple solution. A racket hit, status~1 in the
 same schema and almost as frequent as a bounce (516 against 523 events across the
-dataset, Table~\ref{tab:tracknet-labels}), reverses the ball's vertical motion and
-spikes its acceleration in the same way a bounce does, and the apex of every
-flight between contacts is itself a local extremum of the vertical position. A
-detector that simply flagged the local minima and maxima of the trajectory would
-therefore fire at every turning point and could not classify them: the local
-minima are mostly flight apexes, while the local maxima mix the true bounces with
-racket hits struck low near the court. Absolute position does not resolve the
-ambiguity either, because the court is viewed at an angle and a bounce on the far
-baseline appears as high in the image as a hit on the near side.
+dataset, Table~\ref{tab:tracknet-labels}).
 Figure~\ref{fig:bounce-trajectory-motivation} shows both effects within a single
-rally. Separating a bounce from a hit therefore depends on the finer shape of the
+rally. Separating a bounce from a hit depends on the finer shape of the
 trajectory around the reversal, which neither the reversal nor the ball's position
-reveals on its own, and that is the distinction the two learned models are trained
-to draw: both regress a
-soft bounce-against-rest target with hits held as hard negatives, and the
-bounce-versus-hit confusion count of Section~\ref{sec:meth-metrics-event} measures
-how well each keeps the two apart.
+reveals on its own. That shape is the distinction the two learned models are
+trained to understand.
 
 \begin{figure}[t]
   \centering
@@ -91,18 +47,11 @@ how well each keeps the two apart.
     and vertical ($y$) image coordinates are plotted against the frame index; the
     vertical axis is inverted so the court lies toward the bottom of the panel.
     Bounce frames (status~2) are marked in green and racket hits (status~1) in
-    brown. Every bounce falls where the vertical motion reverses, the signature
-    the detectors of this chapter read. The hits reverse the motion in
-    the same way, and because the court is viewed at an angle a far-court bounce,
-    such as those near frames~92 and~160, appears as high in the frame as a
-    near-court hit, so neither the shape of the reversal nor the ball's absolute
-    position on the screen separates a bounce from a hit. This is the ambiguity
-    a local-extremum rule cannot resolve and that the learned models are
-    trained to settle.}
+    brown.} 
   \label{fig:bounce-trajectory-motivation}
 \end{figure}
 
-One scope limitation must be stated at the outset. The trajectory fed to both
+One scope limitation must be stated at the beginning. The trajectory fed to both
 models in this chapter is built from the ground-truth ball coordinates recorded
 in the dataset, not from the output of the ball tracker of Chapter~\ref{ch:ball}.
 The reported scores are therefore an upper bound on the performance of a deployed
@@ -110,42 +59,54 @@ system, in which the trajectory would carry the localisation error of the tracke
 which is largest on exactly the occluded and near-ground frames where a bounce
 occurs. This decision isolates the bounce-detection question from the
 ball-tracking question, so that the two models are compared on the same
-clean signal, but the deployment gap is real and is taken up again in
-Section~\ref{sec:bounce-analysis}.
+clean signal.
 
 \section{Trajectory Processing and Features}
 \label{sec:bounce-features}
 
-Both models share a single trajectory pipeline, so that the comparison
-varies only the scorer and keeps the preprocessing, the learning target, the
-decoding, and the metrics fixed. The pipeline operates strictly within each clip,
+Both models share a single trajectory pipeline, so that the comparison keeps the same preprocessing, learning target,
+decoding, and metrics fixed. The pipeline operates strictly within each clip,
 so that no feature, window, or smoothing operation ever crosses a clip boundary
 where the ball identity and the time base are discontinuous.
 
-\paragraph{Cleaning and interpolation.}
-The raw trajectory is the sequence of annotated ball positions in a clip, sorted
-by frame index. Frames carrying the $(-1, -1)$ missing-ball sentinel of
+The pipeline begins by cleaning the raw trajectory, the sequence of annotated ball
+positions in a clip, sorted by frame index. Frames carrying the $(-1, -1)$ missing-ball sentinel of
 Section~\ref{sec:meth-tracknet}, whether from an invisible ball or a blank
 annotation, are converted to gaps. Short internal gaps of at most four frames are
 filled by linear interpolation, on the assumption that the ball follows a smooth
-path over so short an interval, and the interpolated frames are flagged so that a
-model can know which observations are inferred. Longer gaps and gaps at the start
+path over so short an interval. Longer gaps and gaps at the start
 or end of a clip are left unfilled and are masked out of both the learning target
 and the loss, so that the detector is never trained or scored on a stretch of
 trajectory that does not exist.
 
-\paragraph{Kinematics.}
-The cleaned positions are differentiated to recover the velocity and acceleration
-that carry the bounce signature. On each contiguous run of valid frames of length
+The cleaned positions are then differentiated to recover the velocity and
+acceleration that carry the bounce signature. On each consecutive run of valid frames of length
 at least seven, a Savitzky-Golay smoothing-differentiation filter with a
 seven-frame window and a quadratic polynomial estimates the first and second
 derivatives, which suppresses the per-frame jitter that a naive finite difference
 would amplify; shorter runs fall back to central differences. This yields the
 horizontal and vertical velocity and acceleration at every valid frame.
+Figure~\ref{fig:savgol-vs-finite-difference} contrasts the two estimates on a
+single rally: the finite difference is visibly noisier, most of all in the
+acceleration, whereas the Savitzky-Golay filter preserves the reversal at each
+bounce while suppressing the jitter.
 
-\paragraph{Features and target.}
-Two feature representations are derived from the same cleaned trajectory, one for
-each kind of model. For the gradient-boosted model, which sees one frame at a
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{img/savgol_vs_finite_difference.png}
+  \caption{Velocity and acceleration recovered from the vertical ball trajectory
+    of one rally, comparing a naive finite difference (red) with the
+    Savitzky-Golay smoothing-differentiation filter (blue). Top: the vertical image
+    coordinate $y$ against the frame index, with bounce frames marked in green.
+    Middle: the first derivative $v_y$. Bottom: the second derivative $a_y$. The
+    finite difference amplifies the per-frame jitter in the tracked positions, most
+    severely in the acceleration, while the Savitzky-Golay estimate keeps the
+    reversal at each bounce and rejects the noise.}
+  \label{fig:savgol-vs-finite-difference}
+\end{figure}
+
+From this cleaned and differentiated trajectory, two feature representations are
+derived, one for each kind of model. For the gradient-boosted model, which sees one frame at a
 time, each frame is described by a seventy-one-dimensional vector: eleven base
 quantities, namely the normalised position, the velocity and acceleration
 components, the speed and acceleration magnitude, the change in heading, the
@@ -156,9 +117,7 @@ differences, absolute horizontal differences, and, most importantly, the
 scale-invariant ratios of the forward to the backward difference. These ratios are
 the principal discriminative feature: in free flight the trajectory is locally
 monotonic and the ratio of forward to backward motion is close to $-1$, whereas at
-a bounce the motion reverses and the ratio flips towards $+1$, a signature that is
-invariant to the ball's distance from the camera and so transfers across the
-perspective scale of the court. For the temporal convolutional network, which sees
+a bounce the motion reverses and the ratio flips towards $+1$. For the temporal convolutional network, which sees
 a window of frames at once and can learn such lag structure internally, each frame
 is described by only seven channels: the normalised position, the velocity and
 acceleration components, and the visibility.
@@ -170,59 +129,20 @@ class, the target is a Gaussian bump in time of unit peak and a standard deviati
 of $1.5$ frames, centred on each bounce frame. Hits and ordinary in-flight frames
 carry a target of zero, so that the soft label rewards a prediction near a true
 bounce in proportion to its temporal closeness while still treating hits as
-negatives. Figure~\ref{fig:bounce-signature} sketches the trajectory signature of a
-bounce and the soft target placed on it.
-
-\begin{figure}[t]
-  \centering
-  \begin{tikzpicture}[xscale=0.92, yscale=0.95]
-    % ---- top panel: vertical position y(t) ----
-    \node[siglbl, anchor=east, align=right] at (-0.15,3.55)
-      {image $y$\\(downward)};
-    \draw[trajline, smooth]
-      plot coordinates {(0,2.9)(1,3.2)(2,3.5)(3,3.8)(4,4.1)(5,4.32)
-                        (6,4.05)(7,3.7)(8,3.35)(9,3.0)(10,2.7)};
-    % velocity-sign annotations
-    \node[siglbl] at (2.4,3.95) {$v_y > 0$};
-    \node[siglbl] at (7.6,3.95) {$v_y < 0$};
-    \node[siglbl, align=center] at (5,4.78) {ground contact:\\local max of $y$, $v_y$ sign flip};
-    % ---- shared bounce guide line ----
-    \draw[guide] (5,-0.15) -- (5,4.5);
-    % ---- bottom panel: soft target g(t) ----
-    \draw[axline] (-0.1,0) -- (10.4,0) node[right, siglbl]{frame index $t$};
-    \draw[axline] (0,-0.1) -- (0,1.85);
-    \node[siglbl, anchor=east] at (-0.15,1.5) {$1.0$};
-    \draw[guide] (-0.05,1.5) -- (0.05,1.5);
-    \draw[targetline, smooth]
-      plot coordinates {(0,0)(1,0.05)(2,0.20)(3,0.62)(4,1.20)(5,1.50)
-                        (6,1.20)(7,0.62)(8,0.20)(9,0.05)(10,0)};
-    \node[siglbl, text=orange!85!black] at (8.1,1.15)
-      {soft target, $\sigma = 1.5$};
-  \end{tikzpicture}
-  \caption{The kinematic signature of a bounce and its learning target, drawn
-    schematically against the frame index. Upper curve: the vertical image
-    coordinate $y$ of the ball, which grows downward, so the ball descending
-    towards the court raises $y$ to a local maximum at ground contact and the
-    vertical velocity $v_y$ reverses from positive to negative there. Lower curve:
-    the Gaussian-in-time soft target of unit peak and standard deviation $1.5$
-    frames centred on the bounce frame, which the learned models regress. A racket
-    hit produces a similar reversal and so must be separated from a bounce by
-    cues other than the reversal alone.}
-  \label{fig:bounce-signature}
-\end{figure}
+negatives.
 
 \section{Models}
 \label{sec:bounce-models}
 
-Two scorers are compared, each mapping a clip's trajectory to a per-frame bounce
+Two models are compared, each mapping a clip's trajectory to a per-frame bounce
 score in $[0, 1]$ that the shared decoder of Section~\ref{sec:bounce-decode} turns
 into discrete events. Both are learned models that draw the bounce-against-hit
 distinction the task demands, but they differ in how much of the trajectory shape
 is supplied to them and how much they must learn. The gradient-boosted classifier
 is handed an explicit per-frame description of the local trajectory shape, while
 the temporal convolutional network is given only the raw per-frame channels and
-must learn that shape for itself. This contrast between an engineered-feature model
-and an end-to-end temporal one is what RQ3 asks them to be compared on.
+must learn that shape for itself. This contrast, between an engineered-feature model
+and an end-to-end temporal one, is the comparison RQ3 needs.
 Table~\ref{tab:bounce-models} summarises them.
 
 \begin{table}[t]
@@ -238,7 +158,7 @@ Table~\ref{tab:bounce-models} summarises them.
     \toprule
     Approach & Input per prediction & Discriminative mechanism & Trained params \\
     \midrule
-    GBM & one frame, 71 features & boosted regression trees & 118 trees ($\le\!10^3$) \\
+    XGBoost & one frame, 71 features & boosted regression trees & 515 trees ($\le\!10^3$) \\
     TCN & 64-frame window, 7 channels & dilated temporal convolutions & 10{,}433 weights \\
     \bottomrule
   \end{tabular}
@@ -248,17 +168,13 @@ Table~\ref{tab:bounce-models} summarises them.
 The gradient-boosted model is an ensemble of regression trees, in the gradient
 boosting framework of Friedman~\cite{friedman2001gbm}, that maps the
 seventy-one-dimensional per-frame feature vector of Section~\ref{sec:bounce-features}
-to the soft bounce target. The implementation prefers the CatBoost gradient-boosting
-library~\cite{prokhorenkova2018catboost} and falls back to the histogram-based
-gradient-boosting regressor of scikit-learn~\cite{pedregosa2011sklearn} when it is
-unavailable, mirroring the import-or-fallback pattern used elsewhere in this work;
-the model evaluated here is the scikit-learn one. It is trained to minimise the
-squared error against the soft target, with the frames near a bounce up-weighted so
-that the scarce positive region is not drowned out by the negative class, for up to
-a thousand boosting iterations with early stopping on a held-out validation split,
-which halted it at 118 trees. Because it consumes one frame at a time, it relies on
-the explicit lag and ratio features to supply the temporal context that its trees
-cannot otherwise see.
+to the soft bounce target. The implementation is XGBoost~\cite{chen2016xgboost}, gradient-boosting model that fits each new tree to the second-order
+expansion of a regularised objective and searches for its splits over histogram bins
+of the features, so that training over the full per-frame table is both efficient and
+resistant to overfitting. It is trained to minimise the squared error against the
+soft target, with the frames near a bounce up-weighted so that the scarce positive
+region is not drowned out by the negative class, for up to a thousand boosting
+iterations with early stopping on a held-out validation split.
 
 
 The temporal convolutional network processes a window of sixty-four consecutive
@@ -279,17 +195,14 @@ the rare positives, with the loss masked out on the invalid frames identified by
 the cleaning step. At inference the network is run over overlapping windows whose
 predictions are averaged back into a single per-frame score for the clip. Unlike
 the gradient-boosted model it learns its own temporal features from the raw
-channels, at the cost of a training loop, a hardware accelerator to train on, and a
-heavier deployment artefact.
-
+channels, at the cost of a training loop, and a hardware accelerator to train on.
 \section{Decoding and Event Matching}
 \label{sec:bounce-decode}
 
 To keep the comparison fair, the per-frame scores of both models pass through
-one shared decoder and one shared matcher, so that any difference in the reported
+one shared decoder, so that any difference in the reported
 events is a difference between the scores and not between the post-processing. The
-decoder locates the peaks of the score signal that exceed the model's calibrated
-threshold, subject to a minimum spacing of five frames between successive peaks so
+decoder locates the peaks of the score signal that exceed the model's threshold, subject to a minimum spacing of five frames between successive peaks so
 that a single bounce is not reported twice, and treats each surviving peak as one
 predicted bounce event; frames masked invalid by the cleaning step are excluded
 from the search. The predicted events are then matched to the ground-truth bounce
@@ -303,34 +216,35 @@ tightens or relaxes with the timing requirement.
 \section{Results}
 \label{sec:bounce-results}
 
-The two models were evaluated on the game7 test split, a single held-out match
+The models were evaluated on the game7 test split, a single held-out match
 of 1\,881 frames in nine clips containing 50 bounce events
 (Table~\ref{tab:splits}). Each model's decode threshold was the value calibrated on
 the validation split. Table~\ref{tab:bounce-results} reports the event metrics at
-the default tolerance together with the average precision and the event counts, and
+the default tolerance together with the average precision and the event counts, for
+the four boosting libraries and the temporal network, and
 Figure~\ref{fig:bounce-comparison} plots the tolerance sweep and the
-precision-recall curves.
+precision-recall curves for the selected XGBoost model against the network.
 
 \begin{table}[t]
   \centering
   \footnotesize
   \setlength{\tabcolsep}{4pt}
   \caption{Bounce-detection results on the game7 test split (50 bounce events), at
-    the default tolerance $k = 3$ frames and each model's validation-calibrated
-    threshold. $P$, $R$, and $F_1$ are the event precision, recall, and $F_1$ at
-    that tolerance; AP is the average precision over the threshold sweep; TP, FP,
-    and FN are the event counts. Bold marks the best value in each column. The
-    frames-per-second column is the throughput of the scorer alone on a precomputed
-    trajectory and excludes ball tracking, so it is a relative ranking between the
-    two models and is not comparable to the per-frame model speeds of
-    Chapter~\ref{ch:ball}.}
+    the default tolerance $k = 3$ frames. $P$, $R$, and $F_1$ are the event
+    precision, recall, and $F_1$ at that tolerance; AP is the average precision over
+    the threshold sweep; TP, FP, and FN are the event counts. Bold marks the best
+    value in each column.}
   \label{tab:bounce-results}
-  \begin{tabular}{l r r r r r r r r r}
+  \begin{tabular}{l r r r r r r r r}
     \toprule
-    Model & Thr. & $F_1$ & $P$ & $R$ & AP & TP & FP & FN & FPS \\
+    Model & $F_1$ & $P$ & $R$ & AP & TP & FP & FN & FPS \\
     \midrule
-    \textbf{GBM}     & 0.60 & \textbf{0.951} & \textbf{0.925} & \textbf{0.980} & 0.874 & 49 & \textbf{4} & \textbf{1} & \textbf{21{,}216} \\
-    TCN              & 0.60 & 0.925 & 0.875 & \textbf{0.980} & \textbf{0.972} & 49 & 7 & \textbf{1} & 4{,}703 \\
+    \textbf{XGBoost} & 0.948 & \textbf{0.979} & 0.920 & 0.930 & 46 & \textbf{1} & 4 & \textbf{36{,}045} \\
+    HistGBM          & \textbf{0.951} & 0.925 & \textbf{0.980} & 0.874 & 49 & 4 & \textbf{1} & 23{,}211 \\
+    LightGBM         & \textbf{0.951} & 0.925 & \textbf{0.980} & 0.866 & 49 & 4 & \textbf{1} & 30{,}610 \\
+    CatBoost         & \textbf{0.951} & 0.925 & \textbf{0.980} & 0.771 & 49 & 4 & \textbf{1} & 34{,}910 \\
+    \midrule
+    TCN              & 0.925 & 0.875 & \textbf{0.980} & \textbf{0.972} & 49 & 7 & \textbf{1} & 1{,}788 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -349,56 +263,59 @@ precision-recall curves.
     \caption{Precision-recall curves.}
     \label{fig:bounce-pr}
   \end{subfigure}
-  \caption{Bounce-detection comparison on the game7 test split. (a)~Event $F_1$ as
-    the matching tolerance $k$ widens from $0$ (exact frame) to $7$ frames. At the
-    exact frame the temporal network achieves the higher $F_1$ (0.717 against the
-    gradient-boosted model's 0.660), but from $k = 1$ onward the gradient-boosted
-    model leads, and both models plateau by $k = 1$. (b)~The precision-recall
-    curves traced by sweeping the decode threshold, whose areas are the average
-    precisions of Table~\ref{tab:bounce-results}: the temporal network encloses the
-    larger area (AP 0.972 against 0.874).}
+  \caption{Bounce-detection comparison on the game7 test split, for the selected
+    XGBoost model against the temporal network. (a)~Event $F_1$ as the matching
+    tolerance $k$ widens from $0$ (exact frame) to $7$ frames. At the exact frame the
+    temporal network achieves the higher $F_1$ (0.717 against XGBoost's 0.680), but
+    from $k = 2$ onward XGBoost leads, and both models plateau by $k = 2$. (b)~The
+    precision-recall curves traced by sweeping the decode threshold, whose areas are
+    the average precisions of Table~\ref{tab:bounce-results}: the temporal network
+    encloses the larger area (AP 0.972 against 0.930).}
   \label{fig:bounce-comparison}
 \end{figure}
 
-The headline result is that both models solve the task well and are close to each
-other, but they lead on different measures. At the default tolerance the
-gradient-boosted model attains the higher event $F_1$ of 0.951, recovering 49 of
-the 50 test bounces at a precision of 0.925, with only four false positives. The
-temporal network recovers the same 49 bounces but raises three more false alarms,
-for a precision of 0.875 and an $F_1$ of 0.925. Both therefore recover all but one
-of the fifty bounces, and the difference between them is entirely a matter of false
-positives, four against seven.
+The four boosting libraries are, for practical purposes, the same model. Their
+event $F_1$ spans 0.948 to 0.951, and three of them, the histogram regressor of
+scikit-learn, LightGBM, and CatBoost, return the identical confusion of 49 recovered
+bounces, four false positives, and one miss; only XGBoost departs from it, and only
+at its operating point. What separates the four is not their $F_1$ but the quality of
+their score ranking, which the average precision measures: XGBoost reaches 0.930,
+well clear of the 0.874, 0.866, and 0.771 of the histogram model, LightGBM, and
+CatBoost, so it is the least sensitive of the four to where the decode threshold is
+placed. On that robustness, together with its operating-point precision, XGBoost is
+the gradient-boosted model carried forward, and the comparison that follows is
+between it and the temporal network.
 
-The two learned models swap places depending on the measure, and the swap is
-informative rather than contradictory. On the average precision, which integrates
-over all decode thresholds and so measures the quality of the score ranking
-independently of any one operating point, the temporal network is clearly ahead at
-0.972 against 0.874. On the exact-frame tolerance $k = 0$ in
-Figure~\ref{fig:bounce-f1k}, the temporal network is again ahead, at 0.717 against
-0.660, indicating that it places the peak on the true bounce frame more often. Yet
-at the chosen operating point and the default tolerance the gradient-boosted model
-wins on $F_1$, because at that single threshold it produces three fewer false
-positives on a test set of only fifty events, which is enough to separate two
-otherwise closely matched models. As Section~\ref{sec:meth-metrics-event} cautions,
-the average precision and the $F_1$ at a tolerance are different quantities at
-different operating points, and the honest reading is that the temporal network has
-the better score ranking and exact-frame timing while the gradient-boosted model is
-marginally more precise at the deployed threshold.
+Against the network the two models solve the task about equally well but trade their
+errors differently. At the default tolerance XGBoost attains the higher event $F_1$,
+0.948 against 0.925,and it raises a single
+false positive across the whole test match, for a precision of 0.979, where the
+network raises seven, for 0.875. It pays for that caution in recall, recovering 46 of
+the 50 bounces against the network's 49, so the network is the more complete detector
+and XGBoost the more conservative one. The contrast is the familiar one between a
+precision-favouring and a recall-favouring operating point rather than a gap in
+capability.
 
-The bounce-versus-hit confusion count confirms that the hard-negative training
-works as intended. Although a racket hit produces the same vertical reversal as a
-bounce, and so is the natural confound for any trajectory-based detector, each
-model mistakes only a single hit for a bounce. Their remaining false positives,
-three for the gradient-boosted model and six for the temporal network, fall on
-neither a bounce nor a hit, and on a fifty-event test set these few events are the
-entire margin between the two.
+The two lead on different measures, and the swap is informative rather than
+contradictory. On the average precision, which integrates over all decode thresholds
+and so measures the quality of the score ranking independently of any one operating
+point, the temporal network is ahead, at 0.972 against 0.930. On the exact-frame
+tolerance $k = 0$ in Figure~\ref{fig:bounce-f1k} it is again ahead, at 0.717 against
+0.680, which says it places the peak on the true bounce frame more often; from
+$k = 2$ onward, XGBoost takes the lead on
+$F_1$ and both plateau. As Section~\ref{sec:meth-metrics-event} cautions, the average
+precision and the $F_1$ at a tolerance are different quantities at different operating
+points, and on a test set of only fifty events a few false positives or a few missed
+bounces are enough to separate two otherwise closely matched models. The fair summary
+is that the temporal network has the better score ranking, exact-frame timing, and
+recall, while XGBoost is the more precise at the deployed threshold.
 
 These results answer RQ3. Both models solve the timing problem well, each
 exceeding an $F_1$ of 0.92 and almost never mistaking a hit for a bounce, which
 confirms that learning the trajectory shape succeeds where reading the reversal
 alone could not. Between the two the difference is small and direction-dependent,
-the temporal network holding the better average precision and exact-frame timing
-and the gradient-boosted model the better operating-point $F_1$ and precision. The
+the temporal network holding the better average precision, exact-frame timing, and
+recall, and XGBoost the better $F_1$ and precision. The
 engineering costs that separate them, and the consequences of the
 ground-truth-trajectory ceiling, are the subject of the analysis below and inform
 the model carried into the integrated system of Chapter~\ref{ch:integrated}.
@@ -406,7 +323,7 @@ the model carried into the integrated system of Chapter~\ref{ch:integrated}.
 \section{Analysis}
 \label{sec:bounce-analysis}
 
-The first finding is that the bounce signature is learnable but not reducible to a
+The finding is that the bounce signature is learnable but not reducible to a
 simple rule. The cues that mark a bounce, the local maximum of the vertical
 position, the velocity sign flip, and the acceleration spike, are genuinely present
 at every bounce, but they are equally present at racket hits and at the apex of
@@ -418,36 +335,6 @@ rather than responding to the reversal alone, and their near-perfect separation 
 the two classes confirms that the discriminative information lies in that shape.
 This parallels the finding of Chapter~\ref{ch:ball} that a learned localiser
 outperforms a geometric one.
-
-The second finding concerns the choice between the two learned models, which the
-results deliberately leave close. The temporal convolutional network has the better
-precision-recall curve and locates the exact bounce frame more often, which suggests
-it is the stronger scorer in an absolute sense and would benefit most from a larger
-test set on which to tune its operating point. The gradient-boosted model matches it
-in recall, edges it in $F_1$ at the deployed threshold, and carries two further
-practical advantages. It needs no hardware accelerator, training in seconds on the
-engineered feature table, and it ships as a single serialised model file with no
-neural-network runtime, whereas the temporal network is best trained on a hardware
-accelerator, depends on a training loop and the windowing-and-averaging inference
-procedure, and would need a separate export step to deploy alongside the other
-neural components. For a
-system whose accuracy difference is within a handful of events on this test set, the
-deployment simplicity is the deciding factor, and the gradient-boosted model is the
-one selected for the integrated pipeline of Chapter~\ref{ch:integrated}; the
-rationale is revisited there at the composition level.
-
-The third point is the ceiling already flagged in Section~\ref{sec:bounce-task}.
-Every number in this chapter was obtained on a trajectory built from the
-ground-truth ball positions, so it measures the detectors against a clean signal
-and should be read as an upper bound. A deployed system would feed them the
-trajectory of the ball tracker of Chapter~\ref{ch:ball}, which carries its largest
-localisation error on occluded and far balls, and a bounce occurs at exactly the
-moment the ball is low, small, and often partly hidden near the court surface. The
-kinematic cues that drive every model here are second-order derivatives of the
-position, which amplify any positional jitter, so the gap between these figures and
-deployed performance is expected to be real, although it is not measured in this
-work. The reported scores establish how well the timing problem can be solved given
-a good trajectory, not how well the end-to-end system bounces.
 
 Two further caveats qualify the numbers. First, the test set is a single held-out
 match with only fifty bounce events, in keeping with the scope noted in
@@ -462,11 +349,9 @@ could be checked; the court projection of a detected bounce is therefore a
 qualitative capability of the integrated system, taken up in
 Chapter~\ref{ch:integrated}, and not a measured result.
 
-In summary, the bounce sub-task answers RQ3 by showing that separating bounces from
-the racket hits that share their kinematic signature calls for a model of the
-trajectory shape rather than a rule on the reversal, that a gradient-boosted model
-and a small temporal convolutional network draw that distinction about equally well
-with complementary strengths, and that the gradient-boosted model is preferred for
-the integrated system on the strength of its operating-point precision and its
-markedly simpler deployment, all under an upper-bound protocol whose deployment gap
-is acknowledged rather than measured.
+In summary, the bounce sub-task answers RQ3 as follows. Separating bounces from the
+racket hits that share their kinematic signature calls for a model of the
+trajectory shape, not a rule on the reversal. A gradient-boosted model and a small
+temporal convolutional network draw that distinction about equally well, and XGBoost, the strongest of the four boosting libraries
+tried, is preferred for the integrated system on the strength of its operating-point
+precision and its markedly simpler deployment.

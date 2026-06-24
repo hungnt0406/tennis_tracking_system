@@ -4,19 +4,14 @@
 This chapter reviews the research that supports the three perception
 sub-tasks studied in this thesis, together with the work on integrated
 analysis systems that motivates their composition. The review is organised
-thematically rather than paper by paper. Section~\ref{sec:rw-detection}
-establishes the two dominant models for localising objects in images,
-bounding-box regression and heatmap regression, and explains why the latter
-is better suited to small, fast targets. Section~\ref{sec:rw-ball} surveys
-ball tracking in sports video, with particular attention to the TrackNet
-family that this thesis benchmarks. Section~\ref{sec:rw-court} covers court
-and field registration, spanning keypoint-detection backbones and the
-geometry of homography estimation. Section~\ref{sec:rw-event} reviews event
-detection from trajectories, including temporal convolutional networks and
-gradient-boosted decision trees. Section~\ref{sec:rw-systems} situates the
-work within integrated tennis systems and automated officiating, and
-Section~\ref{sec:rw-gap} synthesises the preceding material into the research
-gap that this thesis addresses.
+thematically rather than paper by paper. It starts from the general problem
+of localising objects in images, in particular the contrast between
+bounding-box and heatmap regression that recurs throughout the thesis, and
+then works through the three sub-tasks in turn: ball tracking in sports
+video, court and field registration, and event detection from trajectories.
+A final pair of sections covers integrated tennis systems and automated
+officiating, and draws the preceding material into the research gap that
+this thesis addresses.
 
 \section{Object Detection and Small-Object Localisation}
 \label{sec:rw-detection}
@@ -272,26 +267,25 @@ Chapter~\ref{ch:integrated}.
 \section{Research Gap and Positioning}
 \label{sec:rw-gap}
 
-Three observations emerge from the preceding review. First, within each of the
-three perception sub-tasks, a wide range of architectures has been proposed,
-but they are commonly reported on heterogeneous datasets and private
-train/test splits, and most studies evaluate a single proposed model rather
-than placing competing designs on a common footing. This makes it difficult to
-draw like-for-like conclusions about the accuracy, speed, and robustness
-trade-offs between architectures within a sub-task. Second, the heatmap
-formulation that recurs across ball tracking and court detection, and the
-temporal and tree-based models that recur across event detection, are seldom
-compared head to head under a fixed protocol on the same data. Third, and to
-the best of the author's knowledge, comparatively few works compose the
-resulting components into a single end-to-end monocular pipeline whose
-practical deployability, including model export and per-frame latency, is
-assessed, and fewer still close the loop to a geometric line-call decision from
-ordinary single-camera video.
+The review points to three gaps. Within each sub-task a wide range of
+architectures has been proposed, but they are commonly reported on
+heterogeneous datasets and private train/test splits, and most studies
+evaluate a single proposed model rather than placing competing designs on a
+common footing. This makes like-for-like conclusions about the accuracy,
+speed, and robustness trade-offs within a sub-task hard to draw. There is also
+little comparison across the tasks: the heatmap formulation that recurs across
+ball tracking and court detection, and the temporal and tree-based models that
+recur across event detection, are seldom put head to head under a fixed
+protocol on the same data. Finally, and to the best of the author's knowledge,
+comparatively few works compose the resulting components into a single
+end-to-end monocular pipeline whose practical deployability, including model
+export and per-frame latency, is assessed, and fewer still close the loop to a
+geometric line-call decision from ordinary single-camera video.
 
-This thesis is positioned against these gaps. It conducts a controlled,
-within-task comparison for each of the three sub-tasks under a deterministic
-evaluation protocol, and it composes the strongest model from each into one
-reproducible pipeline that maps detected bounces through an estimated
-homography to a qualitative in/out line call. The protocol, datasets, and
-shared metric vocabulary that make these comparisons reproducible are described
-next, in Chapter~\ref{ch:methodology}.
+This thesis targets those gaps directly. For each of the three sub-tasks it
+runs a controlled, within-task comparison under a deterministic evaluation
+protocol, then composes the strongest model from each into one reproducible
+pipeline that maps detected bounces through an estimated homography to a
+qualitative in/out line call. The protocol, datasets, and shared metric
+vocabulary behind these comparisons are described next, in
+Chapter~\ref{ch:methodology}.

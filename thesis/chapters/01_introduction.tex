@@ -6,7 +6,7 @@
 
 Motion in modern sport is fast and highly variable, which makes consistent
 manual measurement difficult. As recording has spread from broadcast crews to
-ordinary phones and consumer cameras, computer vision (CV) has become a
+ordinary phones and consumer cameras, computer vision has become a
 practical tool for sports analytics, applied to problems from player and ball
 tracking through to tactical and performance analysis
 \cite{thomas2017cvsports}. Tennis is a representative and demanding case:
@@ -120,65 +120,34 @@ the court (an automated in/out line call); and (iv) release the artifacts
 required to reproduce the results. This objective is articulated through four
 research questions (RQs).
 
-\begin{description}[leftmargin=2.2em,style=nextline]
-  \item[RQ1 (Ball tracking).] Among the TrackNet family (V1--V5) and a
-    single-frame detector (YOLO11m), which most accurately localises a
-    small, fast, and frequently occluded tennis ball, and what does the
-    architectural progression buy in accuracy relative to inference speed?
-  \item[RQ2 (Court detection).] Which backbone offers the best accuracy/latency
-    trade-off for fourteen-keypoint court detection among a heatmap
-    convolutional neural network (CNN), a deep residual network, a
-    high-resolution network, and a lightweight mobile network, and is the
-    resulting keypoint accuracy sufficient to drive a reliable homography to
-    court-metric space?
-  \item[RQ3 (Bounce detection).] For bounce-event timing from a noisy ball
-    trajectory, in which a racket hit produces the same kinematic reversal as a
-    bounce, how do a gradient-boosted per-frame classifier and a temporal
-    convolutional network compare in accuracy, and what does each cost in
-    engineering effort?
-  \item[RQ4 (Integration).] Can the strongest model from each sub-task be
-    composed into a single pipeline that ingests raw video and outputs a
-    tracked ball, court geometry, bounce events, and, as its culminating
-    output, a per-bounce in/out line-call decision obtained by projecting each
-    bounce through the court homography, demonstrating the line-calling
-    capability as a qualitative geometric result rather than a validated
-    accuracy figure, and what throughput and deployment trade-offs (model
-    export, per-frame latency, and processing bottlenecks) does such a
-    composition incur?
-\end{description}
+RQ1 (Ball tracking): Among the TrackNet family (V1--V5) and a
+  single-frame detector (YOLO11m), which most accurately localises a
+  small, fast, and frequently occluded tennis ball, and what does the
+  architectural progression buy in accuracy relative to inference speed?
 
-\section{Contributions}
-\label{sec:intro-contributions}
+RQ2 (Court detection): Which backbone offers the best accuracy/latency
+  trade-off for fourteen-keypoint court detection among a heatmap
+  convolutional neural network (CNN), a deep residual network, a
+  high-resolution network, and a lightweight mobile network, and is the
+  resulting keypoint accuracy sufficient to drive a reliable homography to
+  court-metric space?
 
-In addressing these questions, the thesis makes the following contributions.
+RQ3 (Bounce detection): For bounce-event timing from a noisy ball
+  trajectory, in which a racket hit produces the same kinematic reversal as a
+  bounce, how do a gradient-boosted per-frame classifier and a temporal
+  convolutional network compare in accuracy, and what does each cost in
+  engineering effort?
 
-\begin{enumerate}[leftmargin=2.2em]
-  \item A deterministic, reproducible benchmark protocol for each
-    sub-task, comprising a fixed data-split contract and a defined metric suite
-    per task (a per-clip split of the TrackNet dataset for ball tracking and
-    bounce detection, and a deterministic hash-based split of the court-keypoint
-    dataset for court detection), enabling controlled, like-for-like comparison
-    within each sub-task.
-  \item Building on that protocol, a systematic comparison of six
-    ball-tracking, four court-detection, and three bounce-detection models, each
-    evaluated on the dataset appropriate to its task, in contrast to the common
-    practice of reporting only a single proposed model.
-  \item An integrated, packaged pipeline that wires the strongest
-    model from each sub-task into one system, with neural-network export to the
-    Open Neural Network Exchange (ONNX) format and an interactive demonstration
-    interface, illustrating practical deployability. By combining the estimated
-    court homography with the detected bounces, the pipeline further produces an
-    automated in/out line-call decision for each bounce, demonstrating the
-    line-calling application that names the thesis.
-  \item Finally, the reproducibility artifacts themselves (split
-    manifests, training configurations, metric outputs, and visualisations),
-    collected in a single repository.
-\end{enumerate}
+RQ4 (Integration): Can the strongest model from each sub-task be
+  composed into a single pipeline that ingests raw video and outputs a
+  tracked ball, court geometry, bounce events, and, as its culminating
+  output, a per-bounce in/out line-call decision obtained by projecting each
+  bounce through the court homography, demonstrating the line-calling
+  capability as a qualitative geometric result rather than a validated
+  accuracy figure, and what throughput and deployment trade-offs (model
+  export, per-frame latency, and processing bottlenecks) does such a
+  composition incur?
 
-These contributions are framed as a controlled comparative study on two
-public-style datasets rather than as a claim of state-of-the-art performance on
-a competition benchmark; the scope and its limitations are stated in
-Section~\ref{sec:intro-scope} and revisited in Chapter~\ref{ch:discussion}.
 
 \section{Scope and Limitations}
 \label{sec:intro-scope}
@@ -218,6 +187,6 @@ Chapter~\ref{ch:court} the court keypoint detection and homography pipeline; and
 Chapter~\ref{ch:bounce} the bounce-event detection comparison.
 Chapter~\ref{ch:integrated} describes the integrated system, its model-selection
 rationale, and its deployment characteristics.
-Chapter~\ref{ch:discussion} discusses cross-cutting findings, threats to
-validity, and reproducibility, and Chapter~\ref{ch:conclusion} concludes by
+Chapter~\ref{ch:discussion} discusses cross-cutting findings and threats to
+validity, and Chapter~\ref{ch:conclusion} concludes by
 answering the research questions and outlining future work.

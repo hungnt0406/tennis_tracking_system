@@ -369,7 +369,7 @@ successive events, and the predicted events are matched to ground-truth
 bounces by greedy one-to-one assignment within a temporal tolerance of
 $\pm k$ frames. From the resulting true positives, false positives, and false
 negatives, an event precision, recall, and $F_1$ at tolerance $k$ are computed
-via Equation~\eqref{eq:f1}; the default tolerance is $k = 3$ frames. Two further
+from these counts in the standard way; the default tolerance is $k = 3$ frames. Two further
 summaries characterise behaviour beyond a single operating point: the average
 precision (AP), obtained as the area under the precision-recall curve traced by
 sweeping the decode threshold, and a tolerance sweep that reports $F_1$ at

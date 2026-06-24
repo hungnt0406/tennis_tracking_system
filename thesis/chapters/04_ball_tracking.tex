@@ -129,16 +129,16 @@ variants is drawn in Figure~\ref{fig:ball-arch}, panels (a) to (e).
     from the implementations used here; the YOLO11m figure is the published size
     of the Ultralytics medium model \cite{jocher2024yolo11}.}
   \label{tab:ball-models}
-  \begin{tabular}{@{}l p{2.8cm} p{2.1cm} p{3.9cm} r@{}}
+  \begin{tabular}{@{}l >{\raggedright\arraybackslash}p{3.0cm} >{\raggedright\arraybackslash}p{4.8cm} r@{}}
     \toprule
-    Model & Output target & Loss & Distinctive module & \makecell[r]{Params\\(M)} \\
+    Model & Output target  & Distinctive module & \makecell[r]{Params\\(M)} \\
     \midrule
-    TrackNet (V1) & 256-class intensity map & cross-entropy & VGG encoder-decoder & 20.9 \\
-    TrackNetV2    & multi-frame heatmaps    & weighted BCE  & multiple-in multiple-out & 11.3 \\
-    TrackNetV3    & multi-frame heatmaps    & weighted BCE + MSE & median background + InpaintNet & 11.3 \\
-    TrackNetV4    & 256-class intensity map & cross-entropy & motion-attention gating & 20.9 \\
-    TrackNetV5    & single heatmap          & BCE           & temporal self-attention & 21.9 \\
-    YOLO11m       & bounding box            & detection loss & anchor-free box regression & 20.1 \\
+    TrackNet (V1) & 256-class intensity map  & VGG encoder-decoder & 20.9 \\
+    TrackNetV2    & multi-frame heatmaps      & multiple-in multiple-out & 11.3 \\
+    TrackNetV3    & multi-frame heatmaps      & median background + InpaintNet & 11.3 \\
+    TrackNetV4    & 256-class intensity map & motion-attention gating & 20.9 \\
+    TrackNetV5    & single heatmap          & temporal self-attention & 21.9 \\
+    YOLO11m       & bounding box            & anchor-free box regression & 20.1 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -407,7 +407,7 @@ frame-to-frame displacement of the predicted ball position between consecutive
 frames; a lower value indicates a smoother, less jittery track, which matters
 because the downstream bounce detector and court projection consume the
 trajectory rather than isolated points. The accuracy curves over the tolerance
-sweep, together with bar charts of the error, $F_1$, and throughput metrics and
+sweep, together with bar charts of the error and $F_1$, and
 the per-visibility error breakdown, are shown in Figure~\ref{fig:ball-selection}.
 
 \begin{figure}[p]
@@ -431,12 +431,6 @@ the per-visibility error breakdown, are shown in Figure~\ref{fig:ball-selection}
     \includegraphics[width=\linewidth]{img/ball_f1_comparison.png}
     \caption{Detection $F_1$.}
     \label{fig:ball-f1}
-  \end{subfigure}\hfill
-  \begin{subfigure}{0.49\textwidth}
-    \centering
-    \includegraphics[width=\linewidth]{img/ball_fps_comparison.png}
-    \caption{Throughput in frames per second.}
-    \label{fig:ball-fps}
   \end{subfigure}
 
   \vspace{0.7em}
@@ -450,12 +444,11 @@ the per-visibility error breakdown, are shown in Figure~\ref{fig:ball-selection}
   \caption{Six-model comparison on the subset test match (game7); the plotted
     values are those tabulated in Table~\ref{tab:ball-selection}.
     (a)~Localisation accuracy across the $\{5, 10, 20\}$-pixel tolerance sweep,
-    where TrackNetV4 and V1 lead while YOLO11m trails. (b)~Mean absolute error,
-    (c)~detection $F_1$, and (d)~inference throughput per model. (e)~Mean
+    where TrackNetV4 and V1 lead while YOLO11m trails. (b)~Mean absolute error
+    and (c)~detection $F_1$. (d)~Mean
     absolute error split by visibility class, showing that all models degrade
     from clearly visible to occluded balls, with the heaviest tails for V2 and
-    YOLO11m. All throughput values were measured on one GPU and are comparable
-    only within this figure (Section~\ref{sec:ball-final}).}
+    YOLO11m.}
   \label{fig:ball-selection}
 \end{figure}
 
@@ -526,10 +519,10 @@ column-for-column with them.
   \centering
   \includegraphics[width=0.8\textwidth]{img/ball_v4_training_curves.png}
   \caption{Training curve of the final TrackNetV4 on the full dataset split
-    (game1--game9 for training and validation). The training loss is plotted on a
-    logarithmic scale (left axis) and validation accuracy at five pixels on a
-    linear scale (right axis), against the epoch count. The training loss falls
-    by roughly three orders of magnitude; validation acc@5px climbs to a plateau
+    (game1--game9 for training and validation). The training loss (left axis) and
+    validation accuracy at five pixels (right axis) are both plotted on linear
+    scales against the epoch count. The training loss falls steeply over the first
+    few epochs and then continues to decrease; validation acc@5px climbs to a plateau
     around 0.93 and peaks at 0.938 at epoch~73 (marked), the checkpoint carried
     forward for evaluation.}
   \label{fig:ball-v4-training}

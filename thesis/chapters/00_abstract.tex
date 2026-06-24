@@ -1,0 +1,41 @@
+% ========================
+% ABSTRACT
+% ========================
+\thispagestyle{fancy}
+\begin{center}
+    {\Large \textbf{Abstract}}
+\end{center}
+\vspace{0.6cm}
+
+This thesis studies monocular, single-camera tennis video for automated ball
+tracking and line calling. Commercial officiating systems such as Hawk-Eye
+show the value of vision-based judgment, but they depend on expensive,
+calibrated multi-camera installations that are unavailable outside elite
+venues, and prior work rarely offers controlled comparisons or reproducible
+pipelines. The thesis reports a controlled comparative study of three
+perception subtasks under a shared, deterministic protocol, and it then
+integrates the strongest model from each subtask into an end-to-end pipeline.
+For ball tracking, six architectures are compared (the TrackNet family, V1 to
+V5, and YOLO11m), and the motion-attention TrackNetV4 is selected; it reaches
+0.956 localization accuracy within five pixels and an F1 of 0.968 on a
+held-out test match. For court registration, four backbones are compared, and
+a MobileNetV3-Small detector with a full-resolution decoder and only 1.28
+million parameters reaches 0.992 keypoint accuracy within seven pixels and a
+mean court-plane reprojection error of 7.67 centimetres. For bounce detection,
+four gradient-boosting classifiers and a temporal convolutional network are
+compared, and XGBoost is selected with an event F1 of 0.948. The three models
+are combined into a single pipeline that takes raw video and produces a
+tracked ball, registered court geometry, bounce timing, and a per-bounce
+in-or-out decision, obtained by projecting each bounce through the estimated
+homography. Across the three subtasks, the learned models consistently
+outperform rule-based alternatives, and the most accurate model in each
+comparison is not the largest one, indicating that the choice of architecture
+matters more than model size. The line call is presented as a geometric
+capability whose quantitative validation as an officiating system is left to
+future work, pending ground-truth labels.
+
+\vspace{0.6cm}
+\noindent\textbf{Keywords:} deep learning, tennis ball tracking, court keypoint
+detection, bounce detection, homography estimation, automated line calling,
+monocular video.
+\clearpage

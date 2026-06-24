@@ -24,6 +24,7 @@
 \usepackage{colortbl}
 \usepackage{xcolor}
 \usepackage{tabularx}
+\usepackage{longtable}
 \usepackage{enumitem}
 \usepackage{etoolbox}
 
@@ -120,14 +121,58 @@
 \clearpage
 
 % ========================
+% SUPERVISOR'S CERTIFICATION
+% ========================
+\input{chapters/00_certification}
+
+% Front matter uses roman page numbers; the body switches to arabic below.
+\pagenumbering{roman}
+
+% ========================
+% ACKNOWLEDGEMENTS
+% ========================
+\addcontentsline{toc}{chapter}{Acknowledgements}
+\input{chapters/00_acknowledgements}
+
+% ========================
+% ABSTRACT
+% ========================
+\addcontentsline{toc}{chapter}{Abstract}
+\input{chapters/00_abstract}
+
+% ========================
+% TABLE OF CONTENTS / LISTS
+% ========================
+\tableofcontents
+\clearpage
+
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
+\clearpage
+
+\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
+\clearpage
+
+% ========================
+% LIST OF ABBREVIATIONS
+% ========================
+% \addcontentsline{toc}{chapter}{List of Abbreviations}
+% \input{chapters/00_abbreviations}
+
+% ========================
 % BODY
 % ========================
+\pagenumbering{arabic}
 \input{chapters/01_introduction}
 \input{chapters/02_related_work}
 \input{chapters/03_methodology}
 \input{chapters/04_ball_tracking}
 \input{chapters/05_court_detection}
 \input{chapters/06_bounce_detection}
+\input{chapters/07_integrated_system}
+\input{chapters/08_discussion}
+\input{chapters/09_conclusion}
 
 % ========================
 % REFERENCES

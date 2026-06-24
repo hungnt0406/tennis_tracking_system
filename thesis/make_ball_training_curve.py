@@ -56,13 +56,13 @@ def make_figure():
 
     fig, ax_loss = plt.subplots(figsize=(6.4, 3.8))
 
-    # Left axis: train loss on a log scale (train_loss spans ~3 decades).
+    # Left axis: train loss on a linear scale.
     l1, = ax_loss.plot(epochs, train_loss, color=C_TRAIN, linewidth=1.8,
                        label="train loss")
-    ax_loss.set_yscale("log")
     ax_loss.set_xlabel("Epoch", fontsize=LABEL_FS)
-    ax_loss.set_ylabel("Loss (log scale)", fontsize=LABEL_FS)
+    ax_loss.set_ylabel("Loss", fontsize=LABEL_FS)
     ax_loss.set_xlim(1, epochs[-1])
+    ax_loss.set_ylim(bottom=0)
     ax_loss.grid(alpha=0.3, which="both")
     ax_loss.tick_params(labelsize=TICK_FS)
 
