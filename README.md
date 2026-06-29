@@ -20,9 +20,9 @@ The system is organized around four parts:
 
 ## Demo
 
-![Tennis tracking demo](final_model/outputs/test250_game10_clip1.gif)
+![Tennis tracking demo](final_model/VideoDemo/annotated_clip1344_xgboost/annotated_clip_1344.gif)
 
-[View original MP4 demo](final_model/outputs/test250_game10_clip1.mp4)
+[View original MP4 demo](final_model/VideoDemo/annotated_clip1344_xgboost/annotated_clip_1344.mp4)
 
 ## Repository Layout
 
