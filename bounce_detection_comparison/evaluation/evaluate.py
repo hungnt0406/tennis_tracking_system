@@ -23,10 +23,13 @@ from data.trajectory import gt_bounce_frames
 from train.config import SPLITS_CSV, RESULTS_DIR, DECODE, FEATURE
 from evaluation.metrics import compute_all_metrics
 
-EVAL_FNS = ("heuristic", "gbm", "tcn")
+EVAL_FNS = ("heuristic", "gbm", "xgboost", "lightgbm", "catboost", "tcn")
 DEFAULT_CKPT = {
     "heuristic": "checkpoints/heuristic_best.json",
     "gbm":       "checkpoints/gbm_best.pkl",
+    "xgboost":   "checkpoints/xgboost_best.pkl",
+    "lightgbm":  "checkpoints/lightgbm_best.pkl",
+    "catboost":  "checkpoints/catboost_best.pkl",
     "tcn":       "checkpoints/tcn_best.pt",
 }
 
@@ -34,8 +37,8 @@ DEFAULT_CKPT = {
 def _load_scorer(model, checkpoint, device):
     if model == "heuristic":
         from models.heuristic import Scorer
-    elif model == "gbm":
-        from models.gbm import Scorer
+    elif model in ("gbm", "xgboost", "lightgbm", "catboost"):
+        from models.gbm import Scorer        # backend-agnostic; predicts on the .pkl envelope
     elif model == "tcn":
         from models.tcn import Scorer
     else:

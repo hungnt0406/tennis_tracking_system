@@ -1,17 +1,18 @@
 """
-Gradient-boosted per-frame bounce regressor.
+Gradient-boosted per-frame bounce regressor (shared across boosting arms).
 
-CatBoost is preferred; if it isn't installed we fall back to scikit-learn's
-HistGradientBoostingRegressor (mirroring the import-or-fallback pattern in
-../tennis_ball_tracking_comparison/train/train_yolo11m.py). Either way the model
-regresses the shared soft (Gaussian-in-time) bounce target from the 71 trajectory
-features, and the per-frame score is decoded into events downstream.
+`build_model` constructs one of four interchangeable backends — scikit-learn
+HistGradientBoosting (the `gbm` arm), XGBoost, LightGBM, or CatBoost. Every
+backend regresses the same shared soft (Gaussian-in-time) bounce target from the
+71 trajectory features, and the per-frame score is decoded into events
+downstream. Because the `Scorer` only relies on `model.predict`, a single Scorer
+serves all four arms; only training differs (each library's native fit / early
+stopping, see train/train_gbm.py).
 """
 
 import numpy as np
 
 from data.dataset import feature_matrix
-from train.config import GBM
 
 try:
     import joblib as _serializer
@@ -19,10 +20,38 @@ except ImportError:
     import pickle as _serializer
 
 
-# ─── model factory (CatBoost preferred, sklearn fallback) ─────────────────────
-def build_model(cfg=GBM):
-    """Return a regressor: CatBoost if importable, else sklearn HistGBR."""
-    try:
+# ─── model factory (one regressor per boosting backend) ───────────────────────
+def build_model(backend, cfg):
+    """Return an unfitted regressor for the requested boosting backend."""
+    if backend in ("histgbm", "gbm", "sklearn"):
+        from sklearn.ensemble import HistGradientBoostingRegressor
+        return HistGradientBoostingRegressor(
+            max_iter=cfg["iterations"],
+            learning_rate=cfg["learning_rate"],
+        )
+    if backend == "xgboost":
+        from xgboost import XGBRegressor
+        return XGBRegressor(
+            n_estimators=cfg["iterations"],
+            learning_rate=cfg["learning_rate"],
+            max_depth=cfg["depth"],
+            objective="reg:squarederror",
+            early_stopping_rounds=cfg["early_stopping_rounds"],
+            n_jobs=-1,
+            verbosity=0,
+        )
+    if backend == "lightgbm":
+        from lightgbm import LGBMRegressor
+        return LGBMRegressor(
+            n_estimators=cfg["iterations"],
+            learning_rate=cfg["learning_rate"],
+            max_depth=cfg["depth"],
+            num_leaves=cfg["num_leaves"],
+            objective="regression",
+            n_jobs=-1,
+            verbose=-1,
+        )
+    if backend == "catboost":
         from catboost import CatBoostRegressor
         return CatBoostRegressor(
             iterations=cfg["iterations"],
@@ -31,12 +60,7 @@ def build_model(cfg=GBM):
             loss_function="RMSE",
             verbose=False,
         )
-    except ImportError:
-        from sklearn.ensemble import HistGradientBoostingRegressor
-        return HistGradientBoostingRegressor(
-            max_iter=cfg["iterations"],
-            learning_rate=cfg["learning_rate"],
-        )
+    raise ValueError(f"unknown boosting backend: {backend}")
 
 
 # ─── persistence (single .pkl envelope) ───────────────────────────────────────

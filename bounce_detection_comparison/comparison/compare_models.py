@@ -14,10 +14,13 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODELS = ["heuristic", "gbm", "tcn"]
+MODELS = ["heuristic", "gbm", "xgboost", "lightgbm", "catboost", "tcn"]
 DEFAULT_CKPT = {
     "heuristic": "checkpoints/heuristic_best.json",
     "gbm":       "checkpoints/gbm_best.pkl",
+    "xgboost":   "checkpoints/xgboost_best.pkl",
+    "lightgbm":  "checkpoints/lightgbm_best.pkl",
+    "catboost":  "checkpoints/catboost_best.pkl",
     "tcn":       "checkpoints/tcn_best.pt",
 }
 

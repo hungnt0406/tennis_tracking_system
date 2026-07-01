@@ -133,7 +133,7 @@ def main():
     export_court(args.court, args.out_dir)
     _write_metadata(args.out_dir)
 
-    print("GBM is a sklearn pickle — ship as-is or switch to TCN for a fully-ONNX bundle")
+    print("bounce model (XGBoost) ships as a pickle — ship as-is or switch to TCN for a fully-ONNX bundle")
 
 
 if __name__ == "__main__":

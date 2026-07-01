@@ -21,14 +21,23 @@ RESULTS_DIR = str(pathlib.Path(__file__).parent.parent / "results")
 MODEL_COLORS = {
     "heuristic": "#2196F3",
     "gbm":       "#FF5722",
+    "xgboost":   "#9C27B0",
+    "lightgbm":  "#CDDC39",
+    "catboost":  "#795548",
     "tcn":       "#4CAF50",
 }
 
 DISPLAY_NAMES = {
     "heuristic": "Heuristic",
     "gbm":       "GBM",
+    "xgboost":   "XGBoost",
+    "lightgbm":  "LightGBM",
+    "catboost":  "CatBoost",
     "tcn":       "TCN",
 }
+
+# Canonical model order for tables/plots (boosting arms grouped together).
+MODEL_ORDER = ["heuristic", "gbm", "xgboost", "lightgbm", "catboost", "tcn"]
 
 # Tolerance values (frames) for the F1@k* sweep.
 TOLERANCES = [0, 1, 2, 3, 5, 7]
@@ -43,7 +52,7 @@ GAMES = [f"game{i}" for i in range(1, 11)]
 
 def load_all(results_dir: str) -> dict:
     all_metrics = {}
-    for model in ("heuristic", "gbm", "tcn"):
+    for model in MODEL_ORDER:
         path = os.path.join(results_dir, f"{model}_metrics.json")
         if os.path.exists(path):
             with open(path) as f:

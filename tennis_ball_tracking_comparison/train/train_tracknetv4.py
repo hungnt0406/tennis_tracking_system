@@ -172,15 +172,25 @@ def train(args):
     print(f"Device: {device}")
 
     train_ds = TrackNetDataset(args.splits_csv, "train", augment=True,
-                               max_samples=args.max_samples, target_mode="classmap")
+                               max_samples=args.max_samples, target_mode="classmap",
+                               frame_cache_dir=args.frame_cache_dir)
     val_ds   = TrackNetDataset(args.splits_csv, "val",   augment=False,
-                               max_samples=args.max_samples, target_mode="classmap")
+                               max_samples=args.max_samples, target_mode="classmap",
+                               frame_cache_dir=args.frame_cache_dir)
     batch_size = auto_select_batch_size(train_ds, args, device) if args.auto_batch else args.batch_size
     pin = device.type == "cuda"
+    loader_kwargs = {
+        "num_workers": args.num_workers,
+        "pin_memory": pin,
+    }
+    if args.num_workers > 0:
+        loader_kwargs["persistent_workers"] = args.persistent_workers
+        loader_kwargs["prefetch_factor"] = args.prefetch_factor
+
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True,
-                          num_workers=4, pin_memory=pin)
+                          **loader_kwargs)
     val_dl   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False,
-                          num_workers=4, pin_memory=pin)
+                          **loader_kwargs)
 
     print(f"Train: {len(train_ds)} samples | Val: {len(val_ds)} samples | Batch: {batch_size}")
 
@@ -212,8 +222,9 @@ def train(args):
         # ── train ──────────────────────────────────────────────────────────
         model.train()
         train_loss = 0.0
-        pbar = tqdm(train_dl, desc=f"Epoch {epoch:3d} [train]", leave=False)
-        for frames, targets, _ in pbar:
+        pbar = tqdm(train_dl, desc=f"Epoch {epoch:3d} [train]",
+                    leave=False, disable=args.no_tqdm)
+        for batch_idx, (frames, targets, _) in enumerate(pbar, start=1):
             frames  = frames.to(device)
             targets = targets.to(device)
             logits = model(frames)
@@ -222,7 +233,18 @@ def train(args):
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
-            pbar.set_postfix(loss=f"{loss.item():.4f}")
+            if args.no_tqdm:
+                should_log = (
+                    args.log_interval > 0 and
+                    (batch_idx == 1 or batch_idx % args.log_interval == 0 or
+                     batch_idx == len(train_dl))
+                )
+                if should_log:
+                    print(f"Epoch {epoch:3d} [train] "
+                          f"batch={batch_idx}/{len(train_dl)} "
+                          f"loss={loss.item():.4f}", flush=True)
+            else:
+                pbar.set_postfix(loss=f"{loss.item():.4f}")
         train_loss /= len(train_dl)
 
         # ── validate ───────────────────────────────────────────────────────
@@ -284,6 +306,16 @@ if __name__ == "__main__":
                         help="Limit train+val to N samples each (quick convergence check)")
     parser.add_argument("--device", default=None,
                         help="Torch device, e.g. cuda, cuda:2, or cpu.")
+    parser.add_argument("--frame_cache_dir", default=None,
+                        help="Optional cache built by python -m data.build_frame_cache.")
+    parser.add_argument("--num_workers", type=int, default=4)
+    parser.add_argument("--prefetch_factor", type=int, default=4)
+    parser.add_argument("--persistent_workers", action=argparse.BooleanOptionalAction,
+                        default=True)
+    parser.add_argument("--no_tqdm", action="store_true",
+                        help="Disable dynamic tqdm bars and print compact progress logs.")
+    parser.add_argument("--log_interval", type=int, default=100,
+                        help="Batch interval for compact logs when --no_tqdm is set.")
     parser.add_argument("--auto_batch", action="store_true",
                         help="Probe CUDA memory and use the largest safe batch size.")
     parser.add_argument("--target_vram_gb", type=float, default=23.0,

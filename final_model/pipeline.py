@@ -70,7 +70,7 @@ class TennisPipeline:
         court_ckpt = court_ckpt or os.path.join(
             REPO_ROOT, "courtkeypoint_detection_comparison/checkpoints/mobilenetv3_best.pt")
         bounce_ckpt = bounce_ckpt or os.path.join(
-            REPO_ROOT, "bounce_detection_comparison/checkpoints/gbm_best.pkl")
+            REPO_ROOT, "bounce_detection_comparison/checkpoints/xgboost_best.pkl")
 
         self.bounds = bounds
         self.fps = fps
@@ -250,21 +250,18 @@ class TennisPipeline:
                 cv2.circle(bgr, (int(traj_orig[i, 0]), int(traj_orig[i, 1])),
                            6, (0, 255, 255), -1)
 
-            # Bounce ring + banner for any recent bounce.
-            active_label = None
+            # Bounce ring + IN/OUT label drawn next to the bounce point.
             for b in bounce_set:
                 age = i - b
-                if 0 <= age < BOUNCE_RING_FRAMES and visible[b]:
-                    label = bounce_labels.get(b, "unknown")
+                if not (0 <= age < BOUNCE_BANNER_FRAMES) or not visible[b]:
+                    continue
+                label = bounce_labels.get(b, "unknown")
+                bx, by = int(traj_orig[b, 0]), int(traj_orig[b, 1])
+                if age < BOUNCE_RING_FRAMES:
                     radius = 8 + age * 3
-                    cv2.circle(bgr, (int(traj_orig[b, 0]), int(traj_orig[b, 1])),
-                               radius, color_for[label], 2)
-                if 0 <= age < BOUNCE_BANNER_FRAMES:
-                    active_label = bounce_labels.get(b, "unknown")
-            if active_label is not None:
-                cv2.putText(bgr, banner_for[active_label], (20, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.4,
-                            color_for[active_label], 3, cv2.LINE_AA)
+                    cv2.circle(bgr, (bx, by), radius, color_for[label], 2)
+                _draw_label_near(bgr, banner_for[label], (bx, by),
+                                 color_for[label], frame_w, frame_h)
 
             # Court minimap PiP.
             if H is not None:
@@ -296,16 +293,6 @@ class TennisPipeline:
                       frame_w, frame_h):
         panel = base.copy()
 
-        # Ball trajectory polyline (visible points up to current frame).
-        pts = []
-        for j in range(i + 1):
-            p = traj_mini[j]
-            if not np.isnan(p[0]):
-                pts.append([int(p[0]), int(p[1])])
-        if len(pts) >= 2:
-            cv2.polylines(panel, [np.array(pts, np.int32)], False,
-                          (255, 0, 0), 1, cv2.LINE_AA)
-
         # Bounce positions seen so far.
         for b in bounce_set:
             if b <= i and not np.isnan(traj_mini[b, 0]):
@@ -331,6 +318,21 @@ class TennisPipeline:
 # ---------------------------------------------------------------------- #
 # Small math helpers
 # ---------------------------------------------------------------------- #
+def _draw_label_near(img, text, anchor, color, frame_w, frame_h,
+                     scale=0.9, thick=2):
+    """Draw `text` just up-and-right of `anchor`, clamped to stay on-screen,
+    over a dark backdrop so it reads against any background."""
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    (tw, th), base = cv2.getTextSize(text, font, scale, thick)
+    tx = anchor[0] + 14
+    ty = anchor[1] - 14
+    tx = max(4, min(tx, frame_w - tw - 4))
+    ty = max(th + 4, min(ty, frame_h - base - 4))
+    cv2.rectangle(img, (tx - 4, ty - th - 4), (tx + tw + 4, ty + base),
+                  (0, 0, 0), -1)
+    cv2.putText(img, text, (tx, ty), font, scale, color, thick, cv2.LINE_AA)
+
+
 def _project_point(H, xy):
     """Project a single frame-pixel point through H -> (X, Y) court meters."""
     src = np.array([[[float(xy[0]), float(xy[1])]]], np.float32)

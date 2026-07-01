@@ -3,8 +3,9 @@ torchvision        # MobileNetV3 backbone imports it
 opencv-python
 numpy
 scipy              # Savitzky-Golay in bounce feature pipeline
-scikit-learn       # GBM pickle (HistGradientBoostingRegressor)
-joblib             # GBM checkpoint serialization
+xgboost            # final bounce model (XGBoost pickle)
+scikit-learn       # bounce feature pipeline; HistGBM fallback arm
+joblib             # bounce checkpoint serialization
 matplotlib         # classify_in_out uses matplotlib.path.Path
 pillow             # torchvision dep; explicit for clean install
 gradio>=4.0

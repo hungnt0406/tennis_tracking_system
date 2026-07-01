@@ -48,12 +48,40 @@ HEURISTIC = dict(
 )
 
 GBM = dict(
-    backend             = "catboost",  # falls back to sklearn HistGradientBoosting
-    iterations          = 1000,        # CatBoost; maps to max_iter for sklearn fallback
+    backend             = "histgbm",   # sklearn HistGradientBoostingRegressor
+    iterations          = 1000,        # maps to max_iter
     learning_rate       = 0.05,
     depth               = 6,
     early_stopping_rounds = 50,
     pos_weight          = 20.0,        # upweight near-bounce rows (imbalance)
+)
+
+# Additional gradient-boosting libraries, compared as separate arms. All share
+# GBM's recipe (same iterations / lr / depth / pos_weight) so the comparison
+# isolates the library, not the hyperparameters.
+XGBOOST = dict(
+    iterations          = 1000,
+    learning_rate       = 0.05,
+    depth               = 6,
+    early_stopping_rounds = 50,
+    pos_weight          = 20.0,
+)
+
+LIGHTGBM = dict(
+    iterations          = 1000,
+    learning_rate       = 0.05,
+    depth               = 6,
+    num_leaves          = 31,
+    early_stopping_rounds = 50,
+    pos_weight          = 20.0,
+)
+
+CATBOOST = dict(
+    iterations          = 1000,
+    learning_rate       = 0.05,
+    depth               = 6,
+    early_stopping_rounds = 50,
+    pos_weight          = 20.0,
 )
 
 TCN = dict(

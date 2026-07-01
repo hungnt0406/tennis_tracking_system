@@ -5,6 +5,7 @@ All three read from a splits CSV produced by subset_selector.py.
 """
 
 import csv
+import json
 from pathlib import Path
 from collections import defaultdict
 
@@ -17,6 +18,8 @@ from data.preprocessing import (
     IMG_H, IMG_W, Augmenter, resize_frame, normalize,
     make_gaussian_heatmap, make_gaussian_target_quantized, coords_to_yolo,
 )
+
+cv2.setNumThreads(0)
 
 
 def _load_splits(splits_csv: str, split: str) -> list:
@@ -39,6 +42,54 @@ def _group_by_clip(records: list) -> dict:
     return groups
 
 
+class ResizedFrameCache:
+    """Read resized RGB frames from a consolidated mmap cache.
+
+    This avoids repeatedly opening and JPEG-decoding the same frame files during
+    TrackNet training while preserving the same resized uint8 image content used
+    by the normal preprocessing path.
+    """
+
+    def __init__(self, cache_dir: str):
+        self.cache_dir = Path(cache_dir)
+        meta_path = self.cache_dir / "metadata.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(
+                f"Frame cache metadata not found: {meta_path}. "
+                "Build it with `python -m data.build_frame_cache` first."
+            )
+
+        with open(meta_path) as f:
+            self.meta = json.load(f)
+
+        if self.meta.get("img_h") != IMG_H or self.meta.get("img_w") != IMG_W:
+            raise ValueError(
+                "Frame cache resolution does not match preprocessing.py: "
+                f"cache={self.meta.get('img_w')}x{self.meta.get('img_h')} "
+                f"expected={IMG_W}x{IMG_H}"
+            )
+
+        data_file = self.cache_dir / self.meta.get("data_file", "frames.npy")
+        if not data_file.exists():
+            raise FileNotFoundError(f"Frame cache data not found: {data_file}")
+
+        self.frames = np.load(data_file, mmap_mode="r")
+        self.path_to_index = self.meta["path_to_index"]
+        self.orig_sizes = self.meta["orig_sizes"]
+
+    def get(self, frame_path: str):
+        try:
+            idx = self.path_to_index[frame_path]
+        except KeyError as exc:
+            raise KeyError(
+                f"Frame path is missing from cache: {frame_path}. "
+                "Rebuild the cache with the same splits CSV."
+            ) from exc
+
+        orig_h, orig_w = self.orig_sizes[idx]
+        return self.frames[idx], int(orig_h), int(orig_w)
+
+
 class TrackNetDataset(Dataset):
     """
     Returns 3-consecutive-frame sequences (9-channel input) and a heatmap label.
@@ -46,9 +97,11 @@ class TrackNetDataset(Dataset):
     """
 
     def __init__(self, splits_csv: str, split: str, augment: bool = False,
-                 max_samples: int = None, target_mode: str = "heatmap"):
+                 max_samples: int = None, target_mode: str = "heatmap",
+                 frame_cache_dir: str = None):
         self.augment = Augmenter(enabled=augment)
         self.target_mode = target_mode
+        self.frame_cache = ResizedFrameCache(frame_cache_dir) if frame_cache_dir else None
         records = _load_splits(splits_csv, split)
         groups = _group_by_clip(records)
 
@@ -66,19 +119,28 @@ class TrackNetDataset(Dataset):
 
     def __getitem__(self, idx):
         r_prev, r_cur, r_next = self.samples[idx]
-        frames_raw = []
-        for r in (r_prev, r_cur, r_next):
-            img = cv2.imread(r["frame_path"])
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            frames_raw.append(img)
+        if self.frame_cache is None:
+            frames_raw = []
+            for r in (r_prev, r_cur, r_next):
+                img = cv2.imread(r["frame_path"])
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                frames_raw.append(img)
 
-        orig_h, orig_w = frames_raw[0].shape[:2]
-        x = float(r_cur["x"])
-        y = float(r_cur["y"])
+            orig_h, orig_w = frames_raw[0].shape[:2]
+            frames_raw, x, y = self._augment_current(frames_raw, r_cur, orig_w)
+            frames_resized = [resize_frame(f) for f in frames_raw]
+        else:
+            frames_resized = []
+            orig_sizes = []
+            for r in (r_prev, r_cur, r_next):
+                img, orig_h, orig_w = self.frame_cache.get(r["frame_path"])
+                frames_resized.append(img)
+                orig_sizes.append((orig_h, orig_w))
+
+            orig_h, orig_w = orig_sizes[0]
+            frames_resized, x, y = self._augment_current(frames_resized, r_cur, orig_w)
+
         vis = int(r_cur["visibility"])
-
-        frames_raw, x, y = self.augment(frames_raw, x, y, orig_w)
-        frames_resized = [resize_frame(f) for f in frames_raw]
 
         # Stack to 9-channel (3 frames × RGB)
         tensor = np.concatenate([normalize(f) for f in frames_resized], axis=0)
@@ -99,6 +161,11 @@ class TrackNetDataset(Dataset):
             target,
             torch.tensor([vis], dtype=torch.long),
         )
+
+    def _augment_current(self, frames, r_cur, orig_w):
+        x = float(r_cur["x"])
+        y = float(r_cur["y"])
+        return self.augment(frames, x, y, orig_w)
 
 
 class SKeepTrackDataset(Dataset):

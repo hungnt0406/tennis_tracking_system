@@ -42,3 +42,9 @@ logs/
 # YOLO / Ultralytics caches
 yolo11m.pt
 *.cache
+
+# Kaggle failure-analysis build output
+kaggle_failures/dist/
+kaggle_failures/kernel-metadata.json
+kaggle_failures/kaggle_output/
+failure_analysis/
